@@ -1,165 +1,145 @@
-# 🚨 GeoRescuX
+# GeoRescuX
 
 ### Offline-First Emergency Response, Safe Routing & Disaster-Resilience Platform
 
-> **GeoRescuX is an offline-first emergency response and rescue platform designed to provide location-aware SOS services, safety-aware routing, hazard intelligence, and emergency coordination even when conventional internet connectivity is unavailable.**
+> **“When connectivity fails, the rescue system shouldn't.”**
 
----
+GeoRescuX is an **offline-first emergency response and rescue platform** designed to provide location-aware SOS services, safety-aware routing, hazard intelligence, and emergency coordination even when conventional internet connectivity is unavailable.
 
-## 📌 Overview
-
-GeoRescuX is designed around one core principle:
+The core principle behind GeoRescuX is simple:
 
 > **Emergency functionality should not stop just because the internet does.**
 
-Traditional navigation and emergency applications often depend on continuous connectivity for maps, cloud synchronization, and route calculation. GeoRescuX takes an **offline-first** approach by keeping essential emergency and routing capabilities available locally while using Firebase for synchronization whenever connectivity is restored.
-
-The platform combines:
-
-- 🆘 Emergency SOS
-- 📍 GPS-based location
-- 🗺️ OpenStreetMap-based mapping
-- 🟢 Safe Route calculation
-- 🚧 Hazard and blocked-road intelligence
-- 💾 Offline-first local persistence
-- 🔄 Firebase synchronization
-- ⚙️ WorkManager background retry
-- 🔐 Firebase Authentication
-- 👑 Secure Admin authorization with Firebase Custom Claims
-- 🌍 Region-scoped routing graphs
-- 🧭 Local routing infrastructure
-- 📡 Online/offline state awareness
-
 ---
 
-## 🎯 Core Philosophy
+## Overview
 
-GeoRescuX separates **critical local emergency functionality** from **connected cloud functionality**.
+During disasters such as floods, earthquakes, landslides and other emergencies, conventional navigation and cloud-dependent emergency systems may become unreliable due to:
+
+* Internet or mobile network failure
+* Damaged or blocked roads
+* Rapidly changing hazard conditions
+* Limited access to updated information
+* Difficulty identifying feasible safe locations
+* Limited smartphone availability in remote communities
+
+GeoRescuX addresses this problem using an **offline-first architecture** where essential emergency and routing capabilities remain available locally, while Firebase is used for synchronization when connectivity is restored.
+
+### Core Workflow
 
 ```text
-                    GEORESCUX
-                        │
-          ┌─────────────┴─────────────┐
-          │                           │
-       OFFLINE                      ONLINE
-          │                           │
-          ▼                           ▼
- Local Persistence              Firebase Sync
- Local Routing                  Cloud Updates
- Cached Map Data                Remote Data
-          │                           │
-          └─────────────┬─────────────┘
-                        ▼
-                 Unified System
+SOS
+ ↓
+GPS Location
+ ↓
+Connectivity Check
+ ↓
+Local / Updated Data
+ ↓
+Hazard & Road Analysis
+ ↓
+Local Routing Engine
+ ↓
+Safe Route
+ ↓
+Safe Haven / Emergency Destination
+ ↓
+Synchronization when connectivity returns
 ```
-
-The network improves the system, but the network should not determine whether the core rescue workflow can operate.
 
 ---
 
-# ⭐ Key Features
+# Key Features
 
-## 🆘 Emergency SOS
+## 1. Emergency SOS
 
-GeoRescuX provides an emergency SOS workflow designed to remain reliable under poor or unavailable network conditions.
+GeoRescuX provides an emergency SOS workflow designed to remain functional under poor or unavailable network conditions.
 
-The SOS architecture is designed so that:
+The SOS architecture supports:
 
-- SOS activation does not depend on successful Firebase communication.
-- Emergency information can be persisted locally.
-- GPS acquisition does not unnecessarily block emergency activation.
-- The best available location can be associated with an emergency.
-- Pending information can synchronize when connectivity returns.
+* SOS activation without requiring successful Firebase communication
+* Local persistence of emergency information
+* GPS-based location association
+* Pending synchronization
+* Synchronization when connectivity becomes available
 
-### Emergency flow
+### Emergency Flow
 
 ```text
 User
-  │
-  ▼
+ ↓
 Activate SOS
-  │
-  ▼
+ ↓
 Emergency Created
-  │
-  ▼
+ ↓
 Local Persistence
-  │
-  ▼
+ ↓
 Location Acquisition
-  │
-  ▼
+ ↓
 Pending Synchronization
-  │
-  ▼
+ ↓
 Firebase when available
 ```
 
 ---
 
-# 📍 GPS & Location Intelligence
+## 2. GPS & Location Intelligence
 
 GeoRescuX integrates device location services into the emergency workflow.
 
 Location information can be used for:
 
-- Current user position
-- SOS location
-- Safe Route origin
-- Emergency map visualization
-- Geographic region identification
+* Current user position
+* SOS location
+* Safe Route origin
+* Emergency map visualization
+* Geographic region identification
 
-A critical design principle is:
+### Important Principle
 
 ```text
 GPS ≠ Internet
 ```
 
-GPS/location services can continue providing positioning even when network connectivity is unavailable.
+GPS/location services can provide positioning even when internet connectivity is unavailable, although accuracy can vary depending on the device and environment.
 
-Location acquisition must not prevent an emergency from being activated.
+Location acquisition is designed so that it does not unnecessarily prevent emergency activation.
 
 ---
 
-# 🗺️ OpenStreetMap-Based Mapping
+## 3. OpenStreetMap-Based Mapping
 
 GeoRescuX uses an **OpenStreetMap-based** geographic foundation.
 
 The map provides geographic context for:
 
-- Roads
-- Streets
-- User location
-- SOS events
-- Hazards
-- Blocked roads
-- Emergency resources
-- Safe Routes
+* Roads and streets
+* User location
+* SOS events
+* Hazards
+* Blocked roads
+* Emergency resources
+* Safe Routes
 
-The map architecture is implemented specifically for GeoRescuX.
-
-The project does **not** embed or depend on the Community Era application. Community Era may be used as inspiration for an interactive OSM-style map experience, but GeoRescuX maintains its own architecture, UI, data model, and emergency functionality.
+The map architecture is maintained specifically for GeoRescuX, with its own UI, data model and emergency-response functionality.
 
 ---
 
-# 📴 Offline Mapping
+## 4. Offline Mapping
 
 Offline operation is a core requirement of GeoRescuX.
 
-The application is designed to retain locally available map information so that geographic visualization can continue when connectivity disappears.
+The application can retain locally available map information so that geographic visualization can continue when connectivity disappears.
 
 ### Online
 
 ```text
 Internet
-   │
-   ▼
+ ↓
 Map Data
-   │
-   ▼
+ ↓
 Local Cache
-   │
-   ▼
+ ↓
 Map
 ```
 
@@ -167,26 +147,21 @@ Map
 
 ```text
 Local Map Data
-      │
-      ▼
-     Map
+ ↓
+Map
 ```
 
-Map storage should be controlled and bounded rather than downloading unlimited geographic tiles.
-
-Where supported by the deployment architecture, important operational regions can be prepared for offline use.
-
-> **Offline map availability depends on the required geographic data already being available on the device.**
+Offline map availability depends on the required geographic data already being available on the device.
 
 ---
 
-# 🟢 Safe Route
+# 5. Safe Route
 
-The **Safe Route** is one of the central GeoRescuX features.
+Safe Route is one of the central features of GeoRescuX.
 
-GeoRescuX is not intended to blindly select the shortest route. Emergency routing can take safety conditions into account.
+Instead of blindly selecting the shortest path, the routing system considers available operational safety information.
 
-### Safe Route pipeline
+### Safe Route Pipeline
 
 ```text
 Current Location
@@ -198,37 +173,61 @@ Regional Route Graph
 Hazard Information
        +
 Blocked Roads
-       │
-       ▼
+       ↓
 Local Routing Engine
-       │
-       ▼
+       ↓
 Safety Evaluation
-       │
-       ▼
+       ↓
 Safe Route
-       │
-       ▼
+       ↓
 Map Visualization
 ```
 
-The route displayed on the map must correspond to the route actually produced by the GeoRescuX routing engine.
-
-The primary route calculation should remain local and should not require a live online routing API.
+The primary route calculation is designed to operate locally and does not require a live online routing API.
 
 ---
 
-# 🧭 Region-Scoped Routing
+# 6. Hazard & Blocked-Road Intelligence
 
-GeoRescuX uses region-specific routing graphs.
+Emergency routing must consider more than distance.
+
+GeoRescuX can represent operational conditions such as:
+
+* Hazards
+* Blocked roads
+* Emergency closures
+* Unsafe road segments
+* Region-specific restrictions
+
+These conditions can influence route calculation.
+
+Depending on the routing policy, affected road segments may either be excluded or assigned increased routing costs.
+
+```text
+Road Network
+     ↓
+Safety Evaluation
+     ↓
+Hazard / Blocked Road Analysis
+     ↓
+Routing Engine
+     ↓
+Safe Route
+```
+
+The system provides a **feasible route based on the hazard information available to it**, rather than claiming guaranteed real-time safety.
+
+---
+
+# 7. Region-Scoped Routing
+
+GeoRescuX uses region-specific routing graphs instead of relying on one global routing graph.
 
 The routing persistence architecture uses:
 
 ```text
 route_graph_{regionId}
 ```
-
-rather than relying on a single global routing graph.
 
 Example:
 
@@ -240,90 +239,27 @@ route_graph_region_03
 
 This provides:
 
-- Geographic separation
-- Better data organization
-- Regional scalability
-- Controlled storage
-- Region-aware routing
+* Geographic separation
+* Better data organization
+* Regional scalability
+* Controlled storage
+* Region-aware routing
 
-The existing regional graph architecture must be preserved when extending the application.
-
----
-
-# 🚧 Hazard & Blocked-Road Intelligence
-
-Emergency routing must account for more than distance.
-
-GeoRescuX can represent operational conditions such as:
-
-- Hazards
-- Blocked roads
-- Emergency closures
-- Unsafe segments
-- Region-specific restrictions
-
-These conditions can influence Safe Route calculation.
-
-```text
-Road Network
-     │
-     ▼
-Safety Evaluation
-     │
- ┌───┼─────────────┐
- ▼   ▼             ▼
-Safe Hazard     Blocked
-Road Segment    Segment
- │     │             │
- └─────┴─────────────┘
-           │
-           ▼
-    Routing Engine
-           │
-           ▼
-       Safe Route
-```
-
-Depending on the implemented routing policy, affected segments may be excluded or assigned increased routing costs.
+This architecture also supports future expansion from a prototype region to multiple disaster-prone regions.
 
 ---
 
-# 🗺️ GeoRescuX Map Layers
+# 8. Offline-First Synchronization
 
-The map is composed of logical layers:
-
-```text
-┌─────────────────────────────────┐
-│          GeoRescuX Map          │
-├─────────────────────────────────┤
-│ Base OpenStreetMap Layer        │
-│                                 │
-│ 📍 User Location                │
-│ 🆘 SOS Events                   │
-│ 🚧 Hazards                      │
-│ ⛔ Blocked Roads                │
-│ 🏥 Emergency Resources          │
-│ 🟢 Safe Route                   │
-└─────────────────────────────────┘
-```
-
-The base geographic map remains separate from GeoRescuX operational data.
-
----
-
-# 🔄 Offline-First Synchronization
-
-Firebase acts as the **cloud synchronization layer**, not the sole source of truth for immediate emergency operation.
+Firebase acts as the **cloud synchronization layer**, rather than being the sole source of truth for immediate emergency operation.
 
 ### Online
 
 ```text
 Local Data
-    │
-    ▼
+    ↓
 Synchronization Layer
-    │
-    ▼
+    ↓
 Firebase
 ```
 
@@ -331,53 +267,46 @@ Firebase
 
 ```text
 User Action
-    │
-    ▼
+    ↓
 Local Persistence
-    │
-    ▼
+    ↓
 Pending Sync
-    │
-    ▼
-Retry / WorkManager
-    │
-    ▼
+    ↓
+WorkManager / Retry
+    ↓
 Firebase when available
 ```
 
 This architecture is especially important for:
 
-- SOS events
-- Emergency information
-- Hazard updates
-- Operational changes
+* SOS events
+* Emergency information
+* Hazard updates
+* Operational changes
+
+The network enhances the system, but the network should not determine whether core emergency functionality can operate.
 
 ---
 
-# ⚙️ WorkManager
+# 9. WorkManager
 
-Android WorkManager can be used for reliable background synchronization and retry operations.
+Android **WorkManager** supports background synchronization and retry operations.
 
 ```text
 Data Created
-     │
-     ▼
+     ↓
 Stored Locally
-     │
-     ▼
+     ↓
 Sync Pending
-     │
-     ▼
+     ↓
 WorkManager
-     │
-     ▼
+     ↓
 Network Available?
     / \
-  NO   YES
-  │     │
-Retry  Upload
-        │
-        ▼
+   NO  YES
+   ↓    ↓
+ Retry Upload
+        ↓
    Sync Complete
 ```
 
@@ -385,46 +314,44 @@ Temporary network failures should not permanently lose pending synchronization w
 
 ---
 
-# 🔐 Authentication
+# 10. Firebase Authentication
 
-GeoRescuX uses Firebase Authentication for user identity.
+GeoRescuX uses **Firebase Authentication** for user identity.
 
 Authentication provides the foundation for:
 
-- User accounts
-- Secure access
-- User-specific data
-- Administrative authorization
+* User accounts
+* Secure access
+* User-specific data
+* Administrative authorization
+
+Firebase Authentication is part of the connected security and synchronization layer and is **not required for the core offline routing process**.
 
 Production credentials must never be hardcoded into the Android application.
 
 ---
 
-# 👑 Admin Authorization
+# 11. Admin Authorization
 
 Administrative access uses **Firebase Custom Claims** rather than client-controlled database fields.
 
-### Authorization model
+### Authorization Model
 
 ```text
 Firebase Authentication
-          │
-          ▼
-   Authenticated User
-          │
-          ▼
-     Custom Claims
-          │
-          ▼
-     admin == true?
-        /       \
-      YES        NO
-       │          │
-       ▼          ▼
- Admin Portal   User Portal
+          ↓
+Authenticated User
+          ↓
+Custom Claims
+          ↓
+admin == true?
+       /       \
+     YES        NO
+      ↓          ↓
+Admin Portal   User Portal
 ```
 
-A normal user must not be able to become an administrator by changing:
+A normal user must not be able to become an administrator by changing client-side values such as:
 
 ```text
 isAdmin = true
@@ -436,240 +363,382 @@ or:
 admin = true
 ```
 
-inside local application data or an unauthorized database node.
-
-Administrative authorization must be enforced by trusted backend infrastructure and Firebase security rules.
+Administrative authorization must be enforced through trusted backend infrastructure and Firebase security rules.
 
 ---
 
-# 🛡️ Security Principles
+# 12. Security Principles
 
-GeoRescuX follows these security principles:
+GeoRescuX follows the following security principles:
 
-### No hardcoded admin passwords
+### No Hardcoded Admin Credentials
 
 Administrative credentials must never be embedded in the Android application.
 
-### No service-account credentials in the APK
+### No Service-Account Credentials in the APK
 
 Firebase Admin SDK credentials belong only in trusted server-side infrastructure.
 
-### Server-enforced authorization
+### Server-Enforced Authorization
 
-Hiding an Admin button is not security. Database/backend authorization must independently enforce permissions.
+Hiding an Admin button is not security. Database and backend authorization must independently enforce permissions.
 
-### User data isolation
+### User Data Isolation
 
 Authenticated users should only access information they are authorized to access.
 
 ---
 
-# 🧑‍💼 Admin Portal
+# 13. Admin Portal
 
 The Admin Portal provides authorized administrative users with operational management capabilities.
 
 Depending on the enabled modules, administrators can manage:
 
-- 🆘 Active SOS events
-- 📍 Emergency locations
-- 🚧 Hazards
-- ⛔ Blocked roads
-- 📋 Incident information
-- 🏥 Emergency resources
-- 🔄 Synchronization state
-- 🌍 Regional operational data
-- 📡 System/network status
+* Active SOS events
+* Emergency locations
+* Hazards
+* Blocked roads
+* Incident information
+* Emergency resources
+* Synchronization state
+* Regional operational data
+* System/network status
 
-Administrative capabilities must be protected by Firebase Custom Claims and backend security rules.
+Administrative capabilities are protected using Firebase Custom Claims and backend security rules.
 
 ---
 
-# 🏗️ System Architecture
+# 14. System Architecture
 
-The overall architecture can be represented as:
+GeoRescuX follows a layered architecture separating presentation, domain and data responsibilities.
 
 ```text
                          GEORESCUX
-                             │
-          ┌──────────────────┼──────────────────┐
-          │                  │                  │
-          ▼                  ▼                  ▼
-    Presentation          Domain              Data
-          │                  │                  │
-          ▼                  ▼         ┌────────┴────────┐
-       Map UI          Routing Engine  │                 │
-          │                  │         ▼                 ▼
-          │                  ▼    Local Storage       Firebase
-          │            Route Graph      │                 │
-          │                  │           │                 │
-          └──────────────────┼───────────┴─────────────────┘
-                             │
-                             ▼
-                       GeoRescuX Core
+                            │
+           ┌────────────────┼────────────────┐
+           │                │                │
+           ▼                ▼                ▼
+     Presentation         Domain           Data
+           │                │                │
+           ▼                ▼         ┌──────┴──────┐
+        Map UI        Routing Engine   │             │
+           │                │          ▼             ▼
+           │                ▼     Local Storage   Firebase
+           │          Route Graph       │             │
+           │                │            │             │
+           └────────────────┼────────────┴─────────────┘
+                            │
+                            ▼
+                     GeoRescuX Core
 ```
 
 ---
 
-# 🧩 Major Components
+# 15. Major Components
 
-| Component | Responsibility |
-|---|---|
-| Firebase Authentication | User identity |
-| Firebase Custom Claims | Admin authorization |
-| Firebase Realtime Database | Cloud data synchronization |
-| OpenStreetMap | Geographic map foundation |
-| Map Engine | Map rendering and interaction |
-| GPS / Location Services | Device positioning |
-| Local Storage | Offline application data |
-| Regional Route Graph | Road-network persistence |
-| Routing Engine | Local Safe Route calculation |
-| SOS System | Emergency activation |
-| Hazard System | Safety intelligence |
-| WorkManager | Background retry/synchronization |
-| Admin Portal | Authorized operational management |
-
----
-
-# 🔌 Online vs Offline
-
-| Capability | Online | Offline |
-|---|:---:|:---:|
-| Cached map display | ✅ | ✅ |
-| GPS/location | ✅ | ✅ |
-| Local routing | ✅ | ✅ |
-| Safe Route | ✅ | ✅ |
-| Local emergency data | ✅ | ✅ |
-| SOS creation | ✅ | ✅ |
-| Firebase synchronization | ✅ | ⏳ Pending |
-| Background retry | ✅ | ⏳ Retry |
-| Cloud updates | ✅ | ❌ |
-| Cached regional graph | ✅ | ✅ |
-
-> Offline capabilities depend on the required map, routing, and application data already being available locally.
+| Component                  | Responsibility                       |
+| -------------------------- | ------------------------------------ |
+| Firebase Authentication    | User identity                        |
+| Firebase Custom Claims     | Admin authorization                  |
+| Firebase Realtime Database | Cloud data synchronization           |
+| OpenStreetMap              | Geographic map foundation            |
+| Map Engine                 | Map rendering and interaction        |
+| GPS / Location Services    | Device positioning                   |
+| Local Storage              | Offline application data             |
+| Regional Route Graph       | Road-network persistence             |
+| Routing Engine             | Local Safe Route calculation         |
+| SOS System                 | Emergency activation                 |
+| Hazard System              | Safety intelligence                  |
+| WorkManager                | Background retry and synchronization |
+| Admin Portal               | Authorized operational management    |
 
 ---
 
-# 🔁 End-to-End Emergency Workflow
+# 16. Online vs Offline
 
-```text
-                    USER
-                     │
-                     ▼
-                Activate SOS
-                     │
-                     ▼
-              Emergency Created
-                     │
-                     ▼
-              Local Persistence
-                     │
-                     ▼
-               GPS Acquisition
-                     │
-                     ▼
-             Emergency Map Layer
-                     │
-                     ▼
-            Regional Routing Graph
-                     │
-                     ▼
-             Safety Evaluation
-                     │
-                     ▼
-              Local Route Engine
-                     │
-                     ▼
-                 SAFE ROUTE
-                     │
-                     ▼
-                 MAP DISPLAY
-                     │
-                     ▼
-           Firebase Synchronization
-              when available
-```
+| Capability               | Online | Offline |
+| ------------------------ | -----: | ------: |
+| Cached map display       |    Yes |     Yes |
+| GPS / Location           |    Yes |     Yes |
+| Local routing            |    Yes |     Yes |
+| Safe Route               |    Yes |     Yes |
+| Local emergency data     |    Yes |     Yes |
+| SOS creation             |    Yes |     Yes |
+| Firebase synchronization |    Yes | Pending |
+| Background retry         |    Yes |   Retry |
+| Cloud updates            |    Yes |      No |
+| Cached regional graph    |    Yes |     Yes |
+
+> Offline capabilities depend on the required map, routing and application data already being available locally.
 
 ---
 
-# 🌐 Network Failure Scenario
+# 17. Network Failure Scenario
 
-If the internet disappears during an emergency:
+If internet connectivity disappears during an emergency:
 
 ```text
 Internet Lost
-     │
-     ▼
+     ↓
 Offline Mode
-     │
-     ├── Cached Map Available
-     │
-     ├── GPS Continues
-     │
-     ├── Local Emergency Data
-     │
-     ├── Local Route Graph
-     │
-     └── Local Routing Engine
-              │
-              ▼
-          Safe Route
+     ↓
+Cached Map Available
+     ↓
+GPS Continues
+     ↓
+Local Emergency Data
+     ↓
+Local Route Graph
+     ↓
+Local Routing Engine
+     ↓
+Safe Route
 ```
 
 The application should not become unusable simply because Firebase or the internet is unavailable.
 
 ---
 
-# 🖥️ Map User Experience
+# 18. Community & Responder Access
 
-The map is designed for emergency use rather than conventional navigation.
+GeoRescuX does not assume that every affected person will have a smartphone.
 
-The interface should provide:
+For communities with limited individual smartphone access, the system can operate through available access points such as:
 
-- 🗺️ OSM-based map
-- 📍 Current location
-- 🟢 Safe Route
-- 🆘 SOS markers
-- 🚧 Hazard indicators
-- ⛔ Blocked-road indicators
-- 🏥 Emergency resources
-- 🔎 Location/destination controls where implemented
-- ➕/➖ Map navigation controls where appropriate
-- 📡 Online/offline status
-- 🔄 Synchronization status
-- 🧭 Route status
+* Community workers
+* Volunteers
+* Police personnel
+* Disaster responders
+* Relief-centre operators
+* Other authorized response personnel
 
-The Safe Route should remain visually clear and immediately understandable.
+The architecture is designed to avoid depending on a single volunteer or access point.
+
+```text
+Affected Community
+        ↓
+Available Access Point
+        ↓
+GeoRescuX
+        ↓
+Safe Haven / Emergency Response
+```
+
+> **Our vision is not one smartphone for every victim; it is one resilient response network for every affected community.**
+
+GeoRescuX is not a replacement for rescue teams. It acts as a **digital support layer for disaster response**.
 
 ---
 
-# 🧪 Testing Strategy
+# 19. End-to-End Emergency Workflow
 
-GeoRescuX should be tested at multiple levels.
+```text
+                         USER
+                           │
+                           ▼
+                      Activate SOS
+                           │
+                           ▼
+                    Emergency Created
+                           │
+                           ▼
+                    Local Persistence
+                           │
+                           ▼
+                     GPS Acquisition
+                           │
+                           ▼
+                    Emergency Map Layer
+                           │
+                           ▼
+                  Regional Routing Graph
+                           │
+                           ▼
+                    Safety Evaluation
+                           │
+                           ▼
+                    Local Route Engine
+                           │
+                           ▼
+                       SAFE ROUTE
+                           │
+                           ▼
+                       MAP DISPLAY
+                           │
+                           ▼
+                 Firebase Synchronization
+                       when available
+```
 
-## Unit Testing
+---
 
-Test:
+# 20. Why GeoRescuX?
 
-- Routing algorithms
-- Regional graph handling
-- Safety evaluation
-- SOS state transitions
-- Synchronization state
-- Authentication/authorization logic
+The central question behind GeoRescuX is:
 
-## Integration Testing
+> **“What happens when an emergency occurs and the network infrastructure is unavailable?”**
 
-Test:
+Conventional navigation often follows:
 
-- Local storage + routing
-- SOS + location
-- Routing + map
-- Firebase + synchronization
-- WorkManager + retry
+```text
+Internet → Cloud → Application
+```
 
-## Offline Testing
+GeoRescuX follows:
 
-Test with:
+```text
+Local Core ↔ Cloud Sync
+
+Local Core
+ ├── SOS
+ ├── GPS
+ ├── Routing
+ ├── Regional Route Graph
+ ├── Emergency Data
+ └── Cached Map
+```
+
+This makes GeoRescuX suitable for scenarios involving:
+
+* Weak connectivity
+* Intermittent connectivity
+* Network congestion
+* Temporary network failure
+* Unavailable internet connectivity
+
+---
+
+# 21. How GeoRescuX is Different
+
+Many existing disaster-management platforms primarily focus on:
+
+* Disaster information
+* Alerts
+* Do's and Don'ts
+* Emergency contacts
+* Chatbots
+* General awareness
+
+GeoRescuX focuses on the transition from **information to actionable response**.
+
+| Traditional Disaster Information | GeoRescuX                               |
+| -------------------------------- | --------------------------------------- |
+| Disaster information             | Action-oriented response                |
+| Emergency contacts               | SOS + location                          |
+| Online information               | Offline-first operation                 |
+| General maps                     | Regional offline map data               |
+| Normal navigation                | Safety-aware routing                    |
+| Static destination information   | Safe Route                              |
+| Fixed route                      | Hazard-aware route calculation          |
+| Cloud-dependent operation        | Local operation + cloud synchronization |
+
+### Core Differentiator
+
+> **Information → Decision → Action**
+
+---
+
+# 22. Design Principles
+
+### 1. Offline First
+
+Core emergency functionality should remain available during network failure.
+
+### 2. Local Reliability
+
+Critical operations should have local persistence and recovery mechanisms.
+
+### 3. Safety Over Distance
+
+Safe Route calculation should account for available operational safety information instead of blindly selecting the shortest path.
+
+### 4. Secure by Design
+
+Authorization must be enforced by trusted infrastructure.
+
+### 5. Regional Scalability
+
+Routing information is organized by region.
+
+### 6. Graceful Failure
+
+Network, GPS, synchronization and routing failures should produce controlled states instead of crashes.
+
+### 7. Separation of Concerns
+
+Mapping, routing, authentication, persistence, synchronization and UI should remain logically separated.
+
+---
+
+# 23. Technology Stack
+
+### Android
+
+* Kotlin
+* Android SDK
+* Android Jetpack
+* WorkManager
+* Android Location Services
+
+### Mapping
+
+* OpenStreetMap
+* Android-compatible OSM map rendering
+* Offline map/tile storage
+
+### Backend
+
+* Firebase Authentication
+* Firebase Realtime Database
+* Firebase Custom Claims
+* Firebase Security Rules
+* Secure server-side/admin infrastructure
+
+### Local Infrastructure
+
+* Local persistence
+* Region-scoped routing graphs
+* Offline routing engine
+* Synchronization queue
+
+### Testing
+
+* Unit tests
+* Android instrumentation tests
+* Offline/network-failure testing
+* Firebase security testing
+
+---
+
+# 24. Testing Strategy
+
+GeoRescuX is designed to be tested at multiple levels.
+
+### Unit Testing
+
+Testing includes:
+
+* Routing algorithms
+* Regional graph handling
+* Safety evaluation
+* SOS state transitions
+* Synchronization state
+* Authentication and authorization logic
+
+### Integration Testing
+
+Testing includes:
+
+* Local storage + routing
+* SOS + location
+* Routing + map
+* Firebase + synchronization
+* WorkManager + retry
+
+### Offline Testing
+
+The system should be tested with:
 
 ```text
 Wi-Fi OFF
@@ -677,36 +746,36 @@ Mobile Data OFF
 Firebase unavailable
 ```
 
-and verify that essential functionality continues to operate.
+and verified to ensure that essential functionality continues to operate.
 
-## Security Testing
+### Security Testing
 
-Verify that:
+Testing should verify that:
 
-- Normal users cannot access Admin operations.
-- Users cannot self-promote.
-- Unauthorized Firebase writes are rejected.
-- Administrative operations require the appropriate Custom Claim.
+* Normal users cannot access Admin operations
+* Users cannot self-promote
+* Unauthorized Firebase writes are rejected
+* Administrative operations require the appropriate Custom Claim
 
 ---
 
-# 📊 Reliability Model
+# 25. Reliability Model
 
 GeoRescuX separates **core emergency functionality** from **connected cloud functionality**.
 
 ```text
                     CORE
                      │
-          ┌──────────┼──────────┐
-          ▼          ▼          ▼
-         SOS        GPS       Routing
-          │          │          │
-          └──────────┼──────────┘
+           ┌─────────┼─────────┐
+           ▼         ▼         ▼
+          SOS       GPS      Routing
+           │         │         │
+           └─────────┼─────────┘
                      ▼
               Local Persistence
                      │
                      ▼
-                CORE SYSTEM
+                 CORE SYSTEM
 
 
               CONNECTED LAYER
@@ -715,126 +784,16 @@ GeoRescuX separates **core emergency functionality** from **connected cloud func
                   Firebase
                      │
                      ▼
-              Synchronization
+               Synchronization
 ```
 
-Cloud connectivity enhances the system without defining whether the core emergency functions can operate.
+Cloud connectivity enhances the system without defining whether core emergency functions can operate.
 
 ---
 
-# ⚡ Design Principles
+# 26. Data & Privacy
 
-## 1. Offline First
-
-Core emergency functionality should remain available during network failure.
-
-## 2. Local Reliability
-
-Critical operations should have local persistence and recovery mechanisms.
-
-## 3. Safety Over Distance
-
-Safe Route calculation should account for operational safety information instead of blindly selecting the shortest path.
-
-## 4. Secure by Design
-
-Authorization must be enforced by trusted infrastructure.
-
-## 5. Regional Scalability
-
-Routing information is organized by region.
-
-## 6. Graceful Failure
-
-Network, GPS, synchronization, and routing failures should produce controlled states instead of crashes.
-
-## 7. Separation of Concerns
-
-Mapping, routing, authentication, persistence, synchronization, and UI should remain logically separated.
-
----
-
-# 🛠️ Technology Stack
-
-### Android
-
-- Kotlin
-- Android SDK
-- Android Jetpack
-- WorkManager
-- Android Location Services
-
-### Mapping
-
-- OpenStreetMap
-- Android-compatible OSM map rendering
-- Offline map/tile storage
-
-### Backend
-
-- Firebase Authentication
-- Firebase Realtime Database
-- Firebase Custom Claims
-- Firebase Security Rules
-- Secure server-side/admin infrastructure
-
-### Local Infrastructure
-
-- Local persistence
-- Region-scoped routing graphs
-- Offline routing engine
-- Synchronization queue
-
-### Testing
-
-- Unit tests
-- Android instrumentation tests
-- Offline/network-failure testing
-- Firebase security testing
-
----
-
-# 📂 Conceptual Project Structure
-
-The exact repository structure should follow the existing GeoRescuX implementation.
-
-```text
-GeoRescuX/
-│
-├── app/
-│   └── src/
-│       └── main/
-│           ├── java/
-│           │   └── ...
-│           │
-│           ├── res/
-│           │   ├── drawable/
-│           │   ├── layout/
-│           │   ├── values/
-│           │   └── navigation/
-│           │
-│           └── AndroidManifest.xml
-│
-├── firebase/
-│   ├── database-rules
-│   └── backend/
-│
-├── routing/
-│   ├── regional-graphs/
-│   └── routing-engine/
-│
-├── tests/
-│
-└── README.md
-```
-
-This is a conceptual structure; existing project organization should not be unnecessarily rewritten.
-
----
-
-# 🔒 Data & Privacy
-
-GeoRescuX should follow data-minimization principles.
+GeoRescuX follows a data-minimization approach.
 
 Emergency and location information should only be accessible to authorized users and systems.
 
@@ -844,204 +803,160 @@ Firebase security rules should enforce access control at the database layer.
 
 ---
 
-# 🚀 Future Scope
+# 27. Future Scope
 
 Potential future extensions include:
 
-- Real-time disaster-zone mapping
-- Dynamic road-closure updates
-- Emergency responder tracking
-- Multiple rescue teams
-- Evacuation-zone visualization
-- Hospital/resource availability
-- Advanced hazard classification
-- Predictive route-risk scoring
-- Regional downloadable map packages
-- Automatic geographic-data updates
-- Disaster-specific routing profiles
-- Advanced emergency coordination
-- Mesh/local communication support
+* Real-time disaster-zone mapping
+* Dynamic road-closure updates
+* Emergency responder tracking
+* Multiple rescue teams
+* Evacuation-zone visualization
+* Hospital and resource availability
+* Advanced hazard classification
+* Predictive route-risk scoring
+* Regional downloadable map packages
+* Automatic geographic-data updates
+* Disaster-specific routing profiles
+* Advanced emergency coordination
+* Mesh/local communication support
 
 ---
 
-# 🏆 Why GeoRescuX?
+# 28. Current Development Status
 
-GeoRescuX addresses a fundamental emergency-response problem:
+GeoRescuX is a prototype under active development.
 
-> **What happens when an emergency occurs and the network infrastructure is unavailable?**
+The following development status should be updated as features are implemented and validated:
 
-Instead of placing all critical functionality behind a cloud service, GeoRescuX moves essential capabilities closer to the device.
+| Module                       | Status      |
+| ---------------------------- | ----------- |
+| Firebase Authentication      | Implemented |
+| Offline persistence          | Implemented |
+| SOS foundation               | Implemented |
+| GPS / SOS location           | Implemented |
+| Firebase synchronization     | Implemented |
+| Regional route graphs        | Implemented |
+| Local routing                | Implemented |
+| OSM production map           | In Progress |
+| Offline map caching          | In Progress |
+| Safe Route map visualization | In Progress |
+| Admin Custom Claims          | In Progress |
+| Admin Portal                 | In Progress |
+| Full end-to-end validation   | In Progress |
 
-```text
-        Conventional Navigation
-
-Internet → Cloud → Application
-
-
-             GeoRescuX
-
-        Local Core ↔ Cloud Sync
-             │
-             ├── SOS
-             ├── GPS
-             ├── Routing
-             ├── Regional Graph
-             ├── Emergency Data
-             └── Cached Map
-```
-
-This makes the platform suitable for scenarios involving weak, intermittent, congested, or unavailable connectivity.
+> **A module should only be marked complete after it has been implemented and validated.**
 
 ---
 
-# 🌍 Project Vision
+# 29. Production Acceptance Criteria
 
-GeoRescuX aims to provide a resilient digital infrastructure for emergency navigation and response.
-
-> **A rescue platform that can continue helping people even when the infrastructure around them cannot.**
-
----
-
-# 📈 Development Status
-
-> Update this table as features are validated in the actual project.
-
-| Module | Status |
-|---|---|
-| Firebase Authentication | 🟢 Implemented |
-| Offline persistence | 🟢 Implemented |
-| SOS foundation | 🟢 Implemented |
-| GPS/SOS location | 🟢 Implemented |
-| Firebase synchronization | 🟢 Implemented |
-| Regional route graphs | 🟢 Implemented |
-| Local routing | 🟢 Implemented |
-| OSM production map | 🟡 In Progress |
-| Offline map caching | 🟡 In Progress |
-| Safe Route map visualization | 🟡 In Progress |
-| Admin Custom Claims | 🟡 In Progress |
-| Admin Portal | 🟡 In Progress |
-| Full end-to-end validation | 🟡 In Progress |
-
-**Do not mark a module complete until it has been implemented and validated.**
-
----
-
-# 🧭 Production Acceptance Criteria
-
-GeoRescuX should ultimately pass the following workflow.
-
-## Online
+### Online Workflow
 
 ```text
 Login
-  ↓
+ ↓
 Open GeoRescuX
-  ↓
+ ↓
 Open Map
-  ↓
-Real OSM map
-  ↓
-Current location
-  ↓
-Select destination
-  ↓
-Local routing engine
-  ↓
+ ↓
+Real OSM Map
+ ↓
+Current Location
+ ↓
+Select Destination
+ ↓
+Local Routing Engine
+ ↓
 Safe Route
-  ↓
-Route displayed on map
-  ↓
-SOS/Hazard information
-  ↓
-Firebase synchronization
+ ↓
+Route Displayed on Map
+ ↓
+SOS / Hazard Information
+ ↓
+Firebase Synchronization
 ```
 
-## Offline
+### Offline Workflow
 
 ```text
 Internet OFF
-    ↓
-Map remains available from local/cached data
-    ↓
+ ↓
+Map available from local/cached data
+ ↓
 GPS continues
-    ↓
-Local emergency data remains available
-    ↓
-Local route graph remains available
-    ↓
+ ↓
+Local emergency data available
+ ↓
+Local route graph available
+ ↓
 Safe Route calculated locally
-    ↓
+ ↓
 Route displayed on map
-    ↓
+ ↓
 SOS remains operational
-    ↓
+ ↓
 Changes stored locally
-    ↓
+ ↓
 Synchronization becomes pending
 ```
 
-## Connectivity Restored
+### Connectivity Restored
 
 ```text
 Internet ON
-    ↓
-Pending local changes
-    ↓
+ ↓
+Pending Local Changes
+ ↓
 Synchronization
-    ↓
+ ↓
 Firebase
-    ↓
-Synchronized state
+ ↓
+Synchronized State
 ```
 
-## Admin
+### Admin Workflow
 
 ```text
 Admin Login
-    ↓
+ ↓
 Firebase Authentication
-    ↓
+ ↓
 Custom Claim Verification
-    ↓
+ ↓
 admin == true
-    ↓
+ ↓
 Admin Portal
-```
-
-## Normal User
-
-```text
-Normal Login
-    ↓
-Standard User Experience
-    ↓
-Admin Portal inaccessible
-    ↓
-Self-promotion rejected
-    ↓
-Unauthorized database operations rejected
 ```
 
 ---
 
-# ⚠️ Important Limitations
+# 30. Important Limitations
 
 Offline functionality is not the same as having the entire world stored on the device.
 
 For complete offline operation in a geographic area, the required:
 
-- map data
-- route graph
-- emergency data
-- hazard information
+* Map data
+* Route graph
+* Emergency data
+* Hazard information
 
 must already be available locally.
 
-Similarly, GPS availability depends on the device and environment. GeoRescuX should gracefully handle situations where a reliable location fix cannot be obtained.
+Additional limitations include:
+
+1. Completely disconnected devices cannot receive newly generated cloud information until some communication path becomes available.
+2. Offline routes depend on the freshness of locally stored data.
+3. Smartphone availability may be limited in some remote communities.
+4. GPS accuracy can vary depending on device and environmental conditions.
+5. Physical rescue still requires human responders and disaster-management infrastructure.
+
+> **Offline capability provides continuity of operation, not unlimited real-time information.**
 
 ---
 
-# 🤝 Development Guidelines
+# 31. Development Guidelines
 
 When extending GeoRescuX:
 
@@ -1058,32 +973,53 @@ When extending GeoRescuX:
 
 ---
 
-# 📜 License
+# 32. Project Vision
 
-Add the project's selected license here.
+GeoRescuX aims to provide a resilient digital infrastructure for emergency navigation and response.
 
-For example:
+> **“A rescue platform that can continue helping people even when the infrastructure around them cannot.”**
+
+Our long-term vision is:
 
 ```text
-MIT License
+Emergency
+    ↓
+Evacuation
+    ↓
+Relief Coordination
+    ↓
+Recovery Support
 ```
 
-Do not claim a license until the corresponding license file has actually been added to the repository.
+The goal is to build a connectivity-resilient disaster-response ecosystem connecting affected communities, safe locations and responders.
 
 ---
 
-# ⚠️ Disclaimer
+# 33. Team
+
+## Team GeoRescuX
+
+Developed for **Smart India Hackathon (SIH) 2026**
+
+---
+
+# 34. Disclaimer
 
 GeoRescuX is a software project intended to assist emergency-response workflows.
 
-It is not a replacement for official emergency services, trained rescue personnel, government emergency infrastructure, or professional navigation systems.
+It is **not a replacement** for:
 
-Real-world deployment requires appropriate geographic-data validation, security auditing, operational testing, reliability testing, regulatory review, and emergency-response validation.
+* Official emergency services
+* Trained rescue personnel
+* Government emergency infrastructure
+* Professional navigation systems
+
+Real-world deployment requires appropriate geographic-data validation, security auditing, operational testing, reliability testing, regulatory review and emergency-response validation.
 
 ---
 
-# 🚨 GeoRescuX
+# GeoRescuX
 
 ### Offline-first. Safety-aware. Rescue-focused.
 
-> **When connectivity fails, the rescue system shouldn't.**
+> **“When connectivity fails, the rescue system shouldn't.”**
