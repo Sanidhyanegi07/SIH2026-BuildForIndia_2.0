@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.os.Bundle
 import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -17,6 +19,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.maps.MapRegionCatalog
+import com.example.georescux.data.maps.PlaceEntry
+import com.example.georescux.data.maps.PlaceIndex
 import com.example.georescux.data.maps.TileArchiveInstaller
 import com.example.georescux.domain.routing.NearestNode
 import com.example.georescux.domain.routing.RouteGraph
@@ -72,6 +76,7 @@ class RouteActivity : AppCompatActivity() {
     private var locationStarted = false
     private var staticOverlaysRendered = false
     private var activeRegion = MapRegionCatalog.sampleRegion
+    private var places: List<PlaceEntry> = emptyList()
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -103,6 +108,22 @@ class RouteActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.textRegionSubtitle).text =
             "Offline evacuation routing — ${activeRegion.displayName}"
 
+        // Offline place-name search: autocomplete + name resolution
+        // (places.json is produced by the region's build tool).
+        places = PlaceIndex.loadFromAsset(
+            assets, "maps/${activeRegion.id}-places.json"
+        )
+        val startField = findViewById<AutoCompleteTextView>(R.id.editTextStartNode)
+        val destinationField = findViewById<AutoCompleteTextView>(R.id.editTextDestinationNode)
+        if (places.isNotEmpty()) {
+            val nameAdapter = ArrayAdapter(
+                this, android.R.layout.simple_dropdown_item_1line,
+                places.map { it.name }.distinct()
+            )
+            startField.setAdapter(nameAdapter)
+            destinationField.setAdapter(nameAdapter)
+        }
+
         val mapView = findViewById<MapView>(R.id.mapView)
         mapView.setUseDataConnection(false)
 
@@ -122,7 +143,7 @@ class RouteActivity : AppCompatActivity() {
         val mapFile = mapCandidates.firstOrNull { it.exists() }
 
         if (mapFile != null) {
-            val forge = MapsForgeTileSource.createFromFiles(arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER")
+            val forge = MapsForgeTileSource.createFromFiles(arrayOf(mapFile), InternalRenderTheme.DEFAULT, "RenderTheme.DEFAULT")
             val provider = MapsForgeTileProvider(
                 SimpleRegisterReceiver(this),
                 forge, null
@@ -298,6 +319,9 @@ class RouteActivity : AppCompatActivity() {
         val nodes = graph?.nodes ?: return@withContext null
 
         if (nodes.any { it.id == input }) return@withContext input
+
+        // Offline place-name resolution (faster + offline vs the Geocoder).
+        PlaceIndex.find(places, input)?.let { return@withContext it.nodeId }
 
         var targetLat: Double? = null
         var targetLng: Double? = null

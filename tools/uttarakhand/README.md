@@ -23,6 +23,11 @@ Development tooling that produces the bundled offline routing graph for the
   counts, connectivity report, safe-haven town audit
 * `output/safe_havens.json` — the real safe-haven dataset with a
   `verified`/provisional flag per entry
+* `output/places.json` — the offline place-search index: 19k+ named OSM
+  places (cities, towns, villages, hamlets) and facilities, each snapped to
+  its routing-graph node. Bundled as `maps/uttarakhand-places.json`; the
+  Safe Route screen autocompletes these names and resolves them to graph
+  nodes fully offline.
 * `output/elevation.json` — optional per-node elevation sidecar (meters,
   sampled from the AWS Terrain Tiles "terrarium" layer, zoom 11). The
   `RouteNode` schema has no elevation field, so this is captured for a
