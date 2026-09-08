@@ -25,7 +25,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.XYTileSource
@@ -87,7 +86,6 @@ class RouteActivity : AppCompatActivity() {
         TileArchiveInstaller.ensureExtracted(this, region)
 
         val mapView = findViewById<MapView>(R.id.mapView)
-        
         // FIX 403: Enforce strict offline map rendering.
         // The tile source name MUST match the provider string inside the region's .sqlite archive.
         val tileSourceName = "${region.id}-offline"
@@ -115,9 +113,6 @@ class RouteActivity : AppCompatActivity() {
         
         graph?.let {
             renderStaticMapOverlays(it, mapView)
-            it.nodes.firstOrNull { node -> node.isSafeHaven }?.id?.let { id ->
-                destinationEditText.setText(id)
-            }
         }
 
         // Map touch / tap listener to select nodes directly on the map
@@ -164,21 +159,17 @@ class RouteActivity : AppCompatActivity() {
         mapView.overlays.add(0, mapEventsOverlay)
 
         findViewById<Button>(R.id.buttonFindRoute).setOnClickListener {
-            uiScope.launch {
-                viewModel.findRouteFromScreen(
-                    selectedStartNodeId = resolveNodeId(startEditText.text.toString()),
-                    destinationNodeId = resolveNodeId(destinationEditText.text.toString()),
-                )
-            }
+            viewModel.findRouteFromScreen(
+                selectedStartNodeId = selectedNodeId(startSpinner),
+                destinationNodeId = selectedNodeId(destinationSpinner),
+            )
         }
 
         findViewById<Button>(R.id.buttonReroute).setOnClickListener {
-            uiScope.launch {
-                viewModel.reroute(
-                    fallbackStartNodeId = resolveNodeId(startEditText.text.toString()),
-                    fallbackDestinationNodeId = resolveNodeId(destinationEditText.text.toString()),
-                )
-            }
+            viewModel.reroute(
+                fallbackStartNodeId = selectedNodeId(startSpinner),
+                fallbackDestinationNodeId = selectedNodeId(destinationSpinner),
+            )
         }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -192,7 +183,7 @@ class RouteActivity : AppCompatActivity() {
         }
 
         uiScope.launch {
-            viewModel.uiState.collect { render(it, startEditText, destinationEditText) }
+            viewModel.uiState.collect { render(it, startSpinner, destinationSpinner) }
         }
     }
 
@@ -257,6 +248,7 @@ class RouteActivity : AppCompatActivity() {
             dLat * dLat + dLng * dLng
         }?.id
     }
+    }
 
     private fun startLocationAcquisition() {
         if (locationStarted) return
@@ -273,8 +265,8 @@ class RouteActivity : AppCompatActivity() {
 
     private fun render(
         ui: RouteUiState,
-        startEditText: EditText,
-        destinationEditText: EditText,
+        startSpinner: Spinner,
+        destinationSpinner: Spinner,
     ) {
         val mapView = findViewById<MapView>(R.id.mapView)
         val stepsContainer = findViewById<LinearLayout>(R.id.routeStepsContainer)
@@ -387,14 +379,18 @@ class RouteActivity : AppCompatActivity() {
         mapView.invalidate()
     }
 
-    private fun syncStartEditText(editText: EditText, startNodeId: String?) {
+    private fun syncStartSpinner(spinner: Spinner, startNodeId: String?) {
         startNodeId ?: return
-        if (editText.text.isBlank()) editText.setText(startNodeId)
+        val nodes = graph?.nodes ?: return
+        val index = nodes.indexOfFirst { it.id == startNodeId }
+        if (index >= 0 && spinner.selectedItemPosition != index) spinner.setSelection(index)
     }
 
-    private fun syncDestinationEditText(editText: EditText, destinationNodeId: String?) {
+    private fun syncDestinationSpinner(spinner: Spinner, destinationNodeId: String?) {
         destinationNodeId ?: return
-        if (editText.text.isBlank()) editText.setText(destinationNodeId)
+        val nodes = graph?.nodes ?: return
+        val index = nodes.indexOfFirst { it.id == destinationNodeId }
+        if (index >= 0 && spinner.selectedItemPosition != index) spinner.setSelection(index)
     }
 
     override fun onDestroy() {

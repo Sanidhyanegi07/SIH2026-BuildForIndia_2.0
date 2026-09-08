@@ -82,7 +82,66 @@ class AppContainer(context: Context) {
         syncStateStore = syncStateStore,
     )
     val sosBackup: SosBackup = syncingSosRepository
-    val sosRepository: SosRepository = syncingSosRepository
+
+    // Offline evacuation routing (Stage 7B-2: region-scoped storage; the
+    // active region is the bundled real OSM-derived sample region).
+    private val routeGraphStore: RouteGraphLocalStore = SharedPreferencesRouteGraphStore(appContext)
+    val routeRepository: RouteRepository = RouteRepositoryImpl(
+        store = routeGraphStore,
+        activeRegionId = MapRegionCatalog.sampleRegion.id,
+    ) {
+        RegionGraphLoader.fromAsset(appContext.assets, MapRegionCatalog.sampleRegion.graphAssetPath)
+    }
+
+    // BLE Mesh Relay & Durable Seen-Event Persistence
+    val relayConnectionManager: com.example.georescux.data.relay.RelayConnectionManager by lazy {
+        com.example.georescux.data.relay.RelayConnectionManager(
+            com.example.georescux.data.relay.GoogleNearbyClientAdapter(appContext)
+        )
+    }
+    val bleRelayTransport: com.example.georescux.data.relay.BleRelayTransport by lazy {
+        com.example.georescux.data.relay.BleRelayTransport(relayConnectionManager)
+    }
+    private val seenEventStore: com.example.georescux.data.relay.SeenEventStore by lazy {
+        com.example.georescux.data.relay.SQLiteSeenEventStore(appContext)
+    }
+    val relayEngine: com.example.georescux.domain.relay.RelayEngine by lazy {
+        com.example.georescux.domain.relay.RelayEngine(
+            selfOriginId = authRepository.currentUserId ?: "DEVICE_LOCAL",
+            transport = bleRelayTransport,
+        )
+    }
+    val durableRelayEngine: com.example.georescux.data.relay.DurableRelayEngine by lazy {
+        com.example.georescux.data.relay.DurableRelayEngine(relayEngine, seenEventStore)
+    }
+
+    // Hazard Corroboration & Route Bridge
+    val hazardEventRouteBridge: com.example.georescux.data.routing.HazardEventRouteBridge by lazy {
+        com.example.georescux.data.routing.HazardEventRouteBridge(routeRepository)
+    }
+    val reportHazardUseCase: com.example.georescux.domain.hazard.ReportHazardUseCase by lazy {
+        com.example.georescux.domain.hazard.ReportHazardUseCase(
+            relayEngine,
+            authRepository.currentUserId ?: "DEVICE_LOCAL"
+        )
+    }
+
+    // Wire SOS through BLE Mesh Relay
+    private val sosRelayRepository: SosRepository by lazy {
+        com.example.georescux.data.sos.SosRelayRepository(
+            delegate = syncingSosRepository,
+            relayEngine = relayEngine,
+            selfOriginId = authRepository.currentUserId ?: "DEVICE_LOCAL",
+        )
+    }
+    val sosRepository: SosRepository by lazy { sosRelayRepository }
+
+    init {
+        relayConnectionManager.attachRelayEngine(relayEngine)
+        relayConnectionManager.setOnEventReceivedListener { envelope ->
+            hazardEventRouteBridge.onEventAccepted(envelope.event)
+        }
+    }
 
     val startSosUseCase = StartSosUseCase(sosRepository)
     val cancelSosUseCase = CancelSosUseCase(sosRepository)
@@ -107,16 +166,6 @@ class AppContainer(context: Context) {
     )
     val contactsBackup: ContactsBackup = syncingContactsRepository
     val contactsRepository: ContactsRepository = syncingContactsRepository
-
-    // Offline evacuation routing (Stage 7B-2: region-scoped storage; the
-    // active region is the bundled real OSM-derived sample region).
-    private val routeGraphStore: RouteGraphLocalStore = SharedPreferencesRouteGraphStore(appContext)
-    val routeRepository: RouteRepository = RouteRepositoryImpl(
-        store = routeGraphStore,
-        activeRegionId = MapRegionCatalog.sampleRegion.id,
-    ) {
-        RegionGraphLoader.fromAsset(appContext.assets, MapRegionCatalog.sampleRegion.graphAssetPath)
-    }
 
     // Stage 7B-3 Step 4 + Stage 8: process-level retry triggers. Fires the
     // existing pending-backup retries on app start and on connectivity
