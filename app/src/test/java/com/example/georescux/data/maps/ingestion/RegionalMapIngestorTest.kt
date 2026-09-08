@@ -52,8 +52,12 @@ class RegionalMapIngestorTest {
             val manifest = File(regionDir, "manifest.json")
             assertTrue("Manifest missing: $regionId", manifest.exists())
             val manifestContent = manifest.readText()
-            assertTrue(manifestContent.contains("\"regionId\": \"$regionId\""))
-            assertTrue(manifestContent.contains("\"sha256Checksum\""))
+            assertTrue("Manifest should have regionId", manifestContent.contains("\"regionId\": \"$regionId\""))
+            assertTrue("Manifest should have sourceFormat", manifestContent.contains("\"sourceFormat\": \"OSM PBF\""))
+            assertTrue("Manifest should have renderingFormat", manifestContent.contains("\"renderingFormat\": \"Mapsforge MAP\""))
+            assertTrue("Manifest should have fileSizeBytes", manifestContent.contains("\"fileSizeBytes\":"))
+            assertTrue("Manifest should have sha256", manifestContent.contains("\"sha256\":"))
+            assertTrue("Manifest should have generatedAt", manifestContent.contains("\"generatedAt\":"))
             
             val boundary = File(regionDir, "boundary.geojson")
             assertTrue("Boundary missing: $regionId", boundary.exists())
@@ -133,7 +137,7 @@ class RegionalMapIngestorTest {
 
     @Test
     fun executeRealIngestion() {
-        val projectRoot = File(System.getProperty("user.dir")).parentFile
+        val projectRoot = File(System.getProperty("user.dir") ?: ".").parentFile
         val realSource = File(projectRoot, "source")
         val realOutput = File(projectRoot, "output")
         if (realSource.exists() && realSource.isDirectory) {

@@ -100,13 +100,21 @@ class RegionalMapIngestor(
             throw IllegalStateException("Checksum mismatch after copying PBF for region $regionId")
         }
 
+        // Calculate SHA-256 for state.map if available, otherwise for targetPbf
+        val mapFile = File(regionDir, "state.map")
+        val manifestSha256 = if (mapFile.exists()) calculateSha256(mapFile) else finalSha256
+        val finalSize = if (mapFile.exists()) mapFile.length() else targetPbf.length()
+
         // Generate manifest
         val displayName = REGION_DISPLAY_NAMES[regionId] ?: regionId
         val manifest = MapManifest(
             regionId = regionId,
             displayName = displayName,
-            fileSize = targetPbf.length(),
-            sha256Checksum = finalSha256
+            fileSizeBytes = finalSize,
+            sha256 = manifestSha256,
+            generatedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
         )
         val manifestFile = File(regionDir, "manifest.json")
         manifestFile.writeText(manifest.toJson())
@@ -170,7 +178,7 @@ class RegionalMapIngestor(
 }
 
 fun main() {
-    val projectRoot = File(System.getProperty("user.dir"))
+    val projectRoot = File(System.getProperty("user.dir") ?: ".")
     val sourceDir = File(projectRoot, "source")
     val outputDir = File(projectRoot, "output")
     

@@ -8,6 +8,45 @@ import com.example.georescux.domain.routing.MapRegion
  * New Delhi). Region packages and downloads belong to later stages.
  */
 object MapRegionCatalog {
+    val uttarakhand = MapRegion(
+        id = "uttarakhand",
+        displayName = "Uttarakhand",
+        minLatitude = 28.7, maxLatitude = 31.5,
+        minLongitude = 77.5, maxLongitude = 81.1,
+        version = 1,
+        graphAssetPath = "route_graph_uttarakhand",
+        tileAssetPath = ""
+    )
+
+    val himachalPradesh = MapRegion(
+        id = "himachal_pradesh",
+        displayName = "Himachal Pradesh",
+        minLatitude = 30.3, maxLatitude = 33.3,
+        minLongitude = 75.5, maxLongitude = 79.0,
+        version = 1,
+        graphAssetPath = "route_graph_himachal_pradesh",
+        tileAssetPath = ""
+    )
+
+    val haryana = MapRegion(
+        id = "haryana",
+        displayName = "Haryana",
+        minLatitude = 27.6, maxLatitude = 30.9,
+        minLongitude = 74.4, maxLongitude = 77.6,
+        version = 1,
+        graphAssetPath = "route_graph_haryana",
+        tileAssetPath = ""
+    )
+
+    val uttarPradesh = MapRegion(
+        id = "uttar_pradesh",
+        displayName = "Uttar Pradesh",
+        minLatitude = 23.8, maxLatitude = 30.4,
+        minLongitude = 77.0, maxLongitude = 84.6,
+        version = 1,
+        graphAssetPath = "route_graph_uttar_pradesh",
+        tileAssetPath = ""
+    )
 
     val sampleRegion = MapRegion(
         id = "sample-region",
@@ -22,6 +61,7 @@ object MapRegionCatalog {
     )
 
     val bundledRegions: List<MapRegion> = listOf(sampleRegion)
+    val availableRegions: List<MapRegion> = listOf(sampleRegion, uttarakhand, himachalPradesh, haryana, uttarPradesh)
 
-    fun byId(id: String): MapRegion? = bundledRegions.firstOrNull { it.id == id }
+    fun byId(id: String): MapRegion? = bundledRegions.firstOrNull { it.id == id } ?: availableRegions.firstOrNull { it.id == id }
 }

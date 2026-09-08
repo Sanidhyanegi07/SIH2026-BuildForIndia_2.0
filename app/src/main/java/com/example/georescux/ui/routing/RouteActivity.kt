@@ -36,6 +36,11 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import java.io.File
+import org.mapsforge.map.android.graphics.AndroidGraphicFactory
+import org.mapsforge.map.rendertheme.InternalRenderTheme
+import org.osmdroid.mapsforge.MapsForgeTileProvider
+import org.osmdroid.mapsforge.MapsForgeTileSource
+import org.osmdroid.tileprovider.util.SimpleRegisterReceiver
 import java.util.Locale
 
 /**
@@ -77,6 +82,9 @@ class RouteActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_route)
 
+        // Initialize Mapsforge graphic factory
+        AndroidGraphicFactory.createInstance(this.application)
+
         val container = (application as GeoRescuXApplication).appContainer
         viewModel = ViewModelProvider(this, RouteViewModel.Factory(container.routeRepository))
             .get(RouteViewModel::class.java)
@@ -87,19 +95,34 @@ class RouteActivity : AppCompatActivity() {
         TileArchiveInstaller.ensureExtracted(this, region)
 
         val mapView = findViewById<MapView>(R.id.mapView)
-        // FIX 403: Enforce strict offline map rendering.
-        // The tile source name MUST match the provider string inside the region's .sqlite archive.
-        val tileSourceName = "${region.id}-offline"
-        mapView.setTileSource(
-            XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
-        )
         mapView.setUseDataConnection(false)
         
-        // Check if the offline tile archive actually exists for the region
+        // Find Mapsforge offline vector map file or fallback to SQLite archive
         val expectedArchive = File(osmdroidBase, "${region.id}-tiles.sqlite")
         val expectedZip = File(osmdroidBase, "${region.id}-tiles.zip")
-        if (!expectedArchive.exists() && !expectedZip.exists()) {
-            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.VISIBLE
+        val mapCandidates = listOf(
+            File(File(filesDir, "output/${region.id}"), "state.map"),
+            File(File(filesDir, "maps/${region.id}"), "state.map"),
+            File(File(getExternalFilesDir(null), "output/${region.id}"), "state.map"),
+            File(File(File(System.getProperty("user.dir") ?: "").parentFile ?: filesDir, "output/${region.id}"), "state.map")
+        )
+        val mapFile = mapCandidates.firstOrNull { it.exists() }
+        
+        if (mapFile != null) {
+            val forge = MapsForgeTileSource.createFromFiles(arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER")
+            val provider = MapsForgeTileProvider(
+                SimpleRegisterReceiver(this),
+                forge, null
+            )
+            mapView.tileProvider = provider
+            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
+        } else {
+            val tileSourceName = "${region.id}-offline"
+            mapView.setTileSource(
+                XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
+            )
+            val hasOfflineData = expectedArchive.exists() || expectedZip.exists()
+            findViewById<TextView>(R.id.textViewNoMapData).visibility = if (hasOfflineData) View.GONE else View.VISIBLE
         }
         mapView.controller.setZoom(15.5)
         mapView.controller.setCenter(
@@ -221,6 +244,7 @@ class RouteActivity : AppCompatActivity() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private suspend fun resolveNodeId(input: String): String? = withContext(Dispatchers.IO) {
         if (input.isBlank()) return@withContext null
         val nodes = graph?.nodes ?: return@withContext null
