@@ -180,15 +180,28 @@ main thread never touches the megabyte-scale parse.
 
 ## 8. On-device performance
 
-Measured with `UttarakhandDevicePerfTest` (`connectedDebugAndroidTest`) on a
-hardware-accelerated x86_64 emulator (Pixel 6 profile) — a proxy for a
-mid-range phone, not a low-end ARM device; treat the numbers as indicative:
+`UttarakhandDevicePerfTest` (in `app/src/androidTest/`) measures the same
+load + route + worst-case-fallback numbers on a real device/emulator via
+`connectedDebugAndroidTest` (results under the `GeoRoutePerf` logcat tag).
+It is committed and ready to run; during the Stage 7B-4 verification it
+could not complete because the only available emulator image
+(`android-37.1`, **16 KB page size** preview) is unstable on the build host —
+it repeatedly crashed during APK installation — and the physical test
+device was disconnected mid-run.
 
-| Step | JVM (desktop) | Emulator (x86_64) |
-|---|---|---|
-| Asset → `RouteGraph` (parse + adjacency) | 630 ms | *(filled from test log)* |
-| A* corridor (Rishikesh→Joshimath, 178 km) | 659 ms avg | *(filled from test log)* |
-| Worst-case safe-haven fallback | 30.2 s | *(filled from test log)* |
+The device attempt did surface one real, fixable production issue: the APK
+failed to install on 16 KB-page systems because `datastore`'s native
+library is 4 KB-aligned. Fixed by `packaging { jniLibs { useLegacyPackaging
+= true } }` in `app/build.gradle.kts`; the rebuilt APK installs cleanly on
+the 16 KB-page emulator (verified via `pm list packages`), which also makes
+the app future-proof for 16 KB-page phones.
+
+Until the device run is repeated on a stable device, treat the JVM numbers
+in §6 as the reference: they are single-threaded desktop measurements, so a
+mid-range ARM phone should expect roughly 2–4× those values for the parse
+and route steps. The bundle-relevant scale facts hold regardless: 18.1 MB
+asset (15.7 MB debug APK overall), ~630 ms one-time graph load per process
+on the JVM, ~0.7 s per typical route.
 
 Known risk flagged for the next stage: the graph persists through the
 existing `SharedPreferences` mechanism — fine for the sample region, but a
