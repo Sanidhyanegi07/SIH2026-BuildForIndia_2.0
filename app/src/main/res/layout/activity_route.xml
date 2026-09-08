@@ -54,27 +54,23 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
-        <EditText
-            android:id="@+id/editTextStartNode"
+        <Spinner
+            android:id="@+id/spinnerStartNode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Type coordinates (e.g. 28.6,77.2) or place name"
-            android:inputType="text"
             android:layout_marginBottom="12dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Destination (safe haven or location)"
+            android:text="Destination (safe haven)"
             android:textSize="14sp"
             android:textStyle="bold" />
 
-        <EditText
-            android:id="@+id/editTextDestinationNode"
+        <Spinner
+            android:id="@+id/spinnerDestinationNode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Type coordinates or place name"
-            android:inputType="text"
             android:layout_marginBottom="12dp" />
 
         <Button
