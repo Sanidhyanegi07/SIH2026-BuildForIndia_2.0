@@ -122,6 +122,11 @@ class HomeActivity : AppCompatActivity() {
         findViewById<View>(R.id.tileSafeRoute).setOnClickListener {
             startActivity(Intent(this, RouteActivity::class.java))
         }
+
+        // Profile tile: photo, phone number and email (device-local).
+        findViewById<View>(R.id.tileProfile).setOnClickListener {
+            startActivity(Intent(this, com.example.georescux.ui.profile.ProfileActivity::class.java))
+        }
     }
 
     private fun setupSosButton() {
