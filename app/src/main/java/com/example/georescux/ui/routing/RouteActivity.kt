@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.XYTileSource
@@ -35,6 +36,11 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import java.io.File
+import org.mapsforge.map.android.graphics.AndroidGraphicFactory
+import org.mapsforge.map.rendertheme.InternalRenderTheme
+import org.osmdroid.mapsforge.MapsForgeTileProvider
+import org.osmdroid.mapsforge.MapsForgeTileSource
+import org.osmdroid.tileprovider.util.SimpleRegisterReceiver
 import java.util.Locale
 
 /**
@@ -76,6 +82,9 @@ class RouteActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_route)
 
+        // Initialize Mapsforge graphic factory
+        AndroidGraphicFactory.createInstance(this.application)
+
         val container = (application as GeoRescuXApplication).appContainer
         viewModel = ViewModelProvider(this, RouteViewModel.Factory(container.routeRepository))
             .get(RouteViewModel::class.java)
@@ -86,19 +95,34 @@ class RouteActivity : AppCompatActivity() {
         TileArchiveInstaller.ensureExtracted(this, region)
 
         val mapView = findViewById<MapView>(R.id.mapView)
-        // FIX 403: Enforce strict offline map rendering.
-        // The tile source name MUST match the provider string inside the region's .sqlite archive.
-        val tileSourceName = "${region.id}-offline"
-        mapView.setTileSource(
-            XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
-        )
         mapView.setUseDataConnection(false)
         
-        // Check if the offline tile archive actually exists for the region
+        // Find Mapsforge offline vector map file or fallback to SQLite archive
         val expectedArchive = File(osmdroidBase, "${region.id}-tiles.sqlite")
         val expectedZip = File(osmdroidBase, "${region.id}-tiles.zip")
-        if (!expectedArchive.exists() && !expectedZip.exists()) {
-            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.VISIBLE
+        val mapCandidates = listOf(
+            File(File(filesDir, "output/${region.id}"), "state.map"),
+            File(File(filesDir, "maps/${region.id}"), "state.map"),
+            File(File(getExternalFilesDir(null), "output/${region.id}"), "state.map"),
+            File(File(File(System.getProperty("user.dir") ?: "").parentFile ?: filesDir, "output/${region.id}"), "state.map")
+        )
+        val mapFile = mapCandidates.firstOrNull { it.exists() }
+        
+        if (mapFile != null) {
+            val forge = MapsForgeTileSource.createFromFiles(arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER")
+            val provider = MapsForgeTileProvider(
+                SimpleRegisterReceiver(this),
+                forge, null
+            )
+            mapView.tileProvider = provider
+            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
+        } else {
+            val tileSourceName = "${region.id}-offline"
+            mapView.setTileSource(
+                XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
+            )
+            val hasOfflineData = expectedArchive.exists() || expectedZip.exists()
+            findViewById<TextView>(R.id.textViewNoMapData).visibility = if (hasOfflineData) View.GONE else View.VISIBLE
         }
         mapView.controller.setZoom(15.5)
         mapView.controller.setCenter(
@@ -159,17 +183,21 @@ class RouteActivity : AppCompatActivity() {
         mapView.overlays.add(0, mapEventsOverlay)
 
         findViewById<Button>(R.id.buttonFindRoute).setOnClickListener {
-            viewModel.findRouteFromScreen(
-                selectedStartNodeId = selectedNodeId(startSpinner),
-                destinationNodeId = selectedNodeId(destinationSpinner),
-            )
+            uiScope.launch {
+                viewModel.findRouteFromScreen(
+                    selectedStartNodeId = resolveNodeId(startEditText.text.toString()),
+                    destinationNodeId = resolveNodeId(destinationEditText.text.toString()),
+                )
+            }
         }
 
         findViewById<Button>(R.id.buttonReroute).setOnClickListener {
-            viewModel.reroute(
-                fallbackStartNodeId = selectedNodeId(startSpinner),
-                fallbackDestinationNodeId = selectedNodeId(destinationSpinner),
-            )
+            uiScope.launch {
+                viewModel.reroute(
+                    fallbackStartNodeId = resolveNodeId(startEditText.text.toString()),
+                    fallbackDestinationNodeId = resolveNodeId(destinationEditText.text.toString()),
+                )
+            }
         }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -183,7 +211,7 @@ class RouteActivity : AppCompatActivity() {
         }
 
         uiScope.launch {
-            viewModel.uiState.collect { render(it, startSpinner, destinationSpinner) }
+            viewModel.uiState.collect { render(it, startEditText, destinationEditText) }
         }
     }
 
@@ -213,6 +241,7 @@ class RouteActivity : AppCompatActivity() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private suspend fun resolveNodeId(input: String): String? = withContext(Dispatchers.IO) {
         if (input.isBlank()) return@withContext null
         val nodes = graph?.nodes ?: return@withContext null
@@ -248,7 +277,6 @@ class RouteActivity : AppCompatActivity() {
             dLat * dLat + dLng * dLng
         }?.id
     }
-    }
 
     private fun startLocationAcquisition() {
         if (locationStarted) return
@@ -265,8 +293,8 @@ class RouteActivity : AppCompatActivity() {
 
     private fun render(
         ui: RouteUiState,
-        startSpinner: Spinner,
-        destinationSpinner: Spinner,
+        startEditText: EditText,
+        destinationEditText: EditText,
     ) {
         val mapView = findViewById<MapView>(R.id.mapView)
         val stepsContainer = findViewById<LinearLayout>(R.id.routeStepsContainer)
@@ -379,18 +407,14 @@ class RouteActivity : AppCompatActivity() {
         mapView.invalidate()
     }
 
-    private fun syncStartSpinner(spinner: Spinner, startNodeId: String?) {
+    private fun syncStartEditText(editText: EditText, startNodeId: String?) {
         startNodeId ?: return
-        val nodes = graph?.nodes ?: return
-        val index = nodes.indexOfFirst { it.id == startNodeId }
-        if (index >= 0 && spinner.selectedItemPosition != index) spinner.setSelection(index)
+        if (editText.text.isBlank()) editText.setText(startNodeId)
     }
 
-    private fun syncDestinationSpinner(spinner: Spinner, destinationNodeId: String?) {
+    private fun syncDestinationEditText(editText: EditText, destinationNodeId: String?) {
         destinationNodeId ?: return
-        val nodes = graph?.nodes ?: return
-        val index = nodes.indexOfFirst { it.id == destinationNodeId }
-        if (index >= 0 && spinner.selectedItemPosition != index) spinner.setSelection(index)
+        if (editText.text.isBlank()) editText.setText(destinationNodeId)
     }
 
     override fun onDestroy() {

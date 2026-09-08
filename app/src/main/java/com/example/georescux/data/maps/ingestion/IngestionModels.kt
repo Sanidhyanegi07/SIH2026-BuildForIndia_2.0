@@ -1,17 +1,20 @@
+
 package com.example.georescux.data.maps.ingestion
 
 data class MapManifest(
     val regionId: String,
     val displayName: String,
     val packageType: String = "regional_map",
-    val sourceFormat: String = "osm.pbf",
+    val sourceFormat: String = "OSM PBF",
     val sourceProvider: String = "OpenStreetMap",
-    val fileName: String = "state.osm.pbf",
-    val fileSize: Long,
-    val sha256Checksum: String,
+    val sourceFile: String = "state.osm.pbf",
+    val renderingFormat: String = "Mapsforge MAP",
+    val renderingFile: String = "state.map",
+    val fileSizeBytes: Long,
+    val sha256: String,
     val packageVersion: Int = 1,
-    val generationTimestamp: Long = System.currentTimeMillis(),
-    val validationStatus: String = "VALIDATED"
+    val generatedAt: String,
+    val validationStatus: String = "valid"
 ) {
     fun toJson(): String {
         return """
@@ -21,11 +24,14 @@ data class MapManifest(
               "packageType": "$packageType",
               "sourceFormat": "$sourceFormat",
               "sourceProvider": "$sourceProvider",
-              "fileName": "$fileName",
-              "fileSize": $fileSize,
-              "sha256Checksum": "$sha256Checksum",
+              "sourceFile": "$sourceFile",
+              "renderingFormat": "$renderingFormat",
+              "renderingFile": "$renderingFile",
+              "fileSizeBytes": $fileSizeBytes,
+              "sha256": "$sha256",
+              "sha256Checksum": "$sha256",
               "packageVersion": $packageVersion,
-              "generationTimestamp": $generationTimestamp,
+              "generatedAt": "$generatedAt",
               "validationStatus": "$validationStatus"
             }
         """.trimIndent()

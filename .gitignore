@@ -13,3 +13,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Generated maps and external tool binaries
+*.map
+output/*/*.map
+tools/osmosis/
+tools/osmosis.zip
+tools/libs/

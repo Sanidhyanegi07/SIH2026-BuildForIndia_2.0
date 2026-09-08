@@ -99,6 +99,6 @@ class HazardEventRouteBridgeTest {
         override fun saveGraph(regionId: String, graph: RouteGraph) {
             currentGraph = graph
         }
-        override fun migrateLegacyGraph(activeRegionId: String) {}
+        override fun migrateLegacyGraph(regionId: String) {}
     }
 }

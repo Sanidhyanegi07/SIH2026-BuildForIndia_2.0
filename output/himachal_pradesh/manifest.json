@@ -2,12 +2,15 @@
   "regionId": "himachal_pradesh",
   "displayName": "Himachal Pradesh",
   "packageType": "regional_map",
-  "sourceFormat": "osm.pbf",
+  "sourceFormat": "OSM PBF",
   "sourceProvider": "OpenStreetMap",
-  "fileName": "state.osm.pbf",
-  "fileSize": 23531962,
+  "sourceFile": "state.osm.pbf",
+  "renderingFormat": "Mapsforge MAP",
+  "renderingFile": "state.map",
+  "fileSizeBytes": 23531962,
+  "sha256": "872ab2813665ab3442426ddcaf66faaa53ee9864c660b47bfcbe1902fb5b7b11",
   "sha256Checksum": "872ab2813665ab3442426ddcaf66faaa53ee9864c660b47bfcbe1902fb5b7b11",
   "packageVersion": 1,
-  "generationTimestamp": 1788878066343,
-  "validationStatus": "VALIDATED"
+  "generatedAt": "2026-09-08T16:30:15Z",
+  "validationStatus": "valid"
 }
