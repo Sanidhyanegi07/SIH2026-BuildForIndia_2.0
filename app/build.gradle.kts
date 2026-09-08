@@ -4,6 +4,13 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+// OneDrive-hosted checkouts lock intermediate files while syncing, which
+// breaks AGP's file merging (java.nio.file.AccessDeniedException). Builds
+// can be relocated off the synced path by setting GEORESCUX_BUILD_DIR.
+System.getenv("GEORESCUX_BUILD_DIR")?.let { buildDirPath ->
+    layout.buildDirectory.set(file(buildDirPath))
+}
+
 android {
     namespace = "com.example.georescux"
     compileSdk = 35

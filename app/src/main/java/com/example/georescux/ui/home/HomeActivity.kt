@@ -122,6 +122,11 @@ class HomeActivity : AppCompatActivity() {
         findViewById<View>(R.id.tileSafeRoute).setOnClickListener {
             startActivity(Intent(this, RouteActivity::class.java))
         }
+
+        // BLE Diagnostics tile: two-device emergency mesh testing surface.
+        findViewById<View>(R.id.tileBleDiagnostics).setOnClickListener {
+            startActivity(Intent(this, com.example.georescux.ui.ble.BleDiagnosticsActivity::class.java))
+        }
     }
 
     private fun setupSosButton() {
@@ -244,6 +249,16 @@ class HomeActivity : AppCompatActivity() {
     private fun startBleMeshIfPermissionsGranted() {
         val deviceName = Build.MODEL ?: "GeoRescuXDevice"
         (application as GeoRescuXApplication).appContainer.relayConnectionManager.startMesh(deviceName)
+        // Raw BLE subsystem (GATT emergency mesh): initialize opportunistically.
+        // Failures are contained and logged under "GeoRescueX-BLE" — BLE
+        // problems must never affect SOS or the Nearby relay.
+        runCatching {
+            val manager = (application as GeoRescuXApplication).appContainer.bleManager
+            if (manager.initialize()) {
+                manager.startAdvertising()
+                manager.startScanning()
+            }
+        }
     }
 
     private fun checkAndRequestBluetooth() {

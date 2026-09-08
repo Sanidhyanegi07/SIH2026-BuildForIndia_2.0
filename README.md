@@ -66,6 +66,10 @@ Firebase acts as a synchronization layer, not the only source of truth for immed
 
 Administrative access is enforced with Firebase custom claims and trusted backend infrastructure rather than client-side flags.
 
+### 8. BLE emergency mesh (raw GATT subsystem)
+
+A dedicated raw-BLE subsystem (`data/ble` + `domain/ble`, see **[docs/BLE_SUBSYSTEM.md](docs/BLE_SUBSYSTEM.md)**) provides a diagnosable phone-to-phone emergency transport alongside the Google Nearby relay: a custom GATT service (RX/TX characteristics), UUID-filtered scanning, nameless advertising, structured emergency packets with unique `packetId`s (idempotent), durable deduplication, hop-based TTL (default 5), store-and-forward, and a two-device diagnostic screen with single-tag logging (`GeoRescuX-BLE`). BLE never replaces Firebase: received SOS packets are persisted into the same local store the existing sync engine uploads when Internet returns, and BLE failure can never block or cancel SOS activation.
+
 ## Architecture
 
 GeoRescuX follows a layered model separating presentation, domain logic, and data access:

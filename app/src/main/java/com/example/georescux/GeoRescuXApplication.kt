@@ -182,7 +182,55 @@ class AppContainer(context: Context) {
             selfOriginId = selfOriginId,
         )
     }
-    val sosRepository: SosRepository by lazy { sosRelayRepository }
+
+    // Raw BLE subsystem (custom GATT emergency service + hop-TTL mesh).
+    // Distinct from the Google Nearby relay above: Nearby handles the
+    // Android-ecosystem mesh, the BLE subsystem provides the diagnosable
+    // GATT transport (docs/BLE_SUBSYSTEM.md). Both feed the SAME local
+    // persistence and the SAME Firebase sync engine.
+    val bleSosBridge: com.example.georescux.data.ble.BleSosBridge by lazy {
+        com.example.georescux.data.ble.BleSosBridge(
+            manager = bleManager,
+            originDeviceId = selfOriginId,
+        )
+    }
+    val bleManager: com.example.georescux.data.ble.GeoRescueBleManager by lazy {
+        // Logcat sink first: every BLE event goes to "GeoRescueX-BLE".
+        com.example.georescux.data.ble.GeoRescueBleLogSink.installOnce()
+        val manager = com.example.georescux.data.ble.GeoRescueBleManager(
+            appContext = appContext,
+            selfDeviceId = selfOriginId,
+            repository = com.example.georescux.data.ble.GeoRescueBleRepository(appContext),
+        )
+        manager.addPacketListener(object : com.example.georescux.data.ble.GeoRescueBleManager.PacketListener {
+            override fun onPacketAccepted(
+                packet: com.example.georescux.domain.ble.GeoRescueBlePacket,
+                fromPeerId: String?,
+            ) {
+                if (fromPeerId == null) return // locally published packets were already persisted by SOS layer
+                val emergency = bleSosBridge.emergencyFromPacket(packet) ?: return
+                // Persist into the SAME local SOS store the existing sync
+                // engine reads — a device with Internet will upload the
+                // received emergency to Firebase on its next sync run.
+                sosStore.addToHistory(emergency)
+                if (emergency.isActive) {
+                    com.example.georescux.data.notification.SosAlertNotifier.notify(
+                        context = appContext,
+                        originId = packet.originDeviceId,
+                        startedAtMs = packet.timestampMs,
+                    )
+                }
+            }
+        })
+        manager
+    }
+    private val sosBleBridgeRepository: SosRepository by lazy {
+        com.example.georescux.data.sos.SosBleBridgeRepository(
+            delegate = sosRelayRepository,
+            bridge = bleSosBridge,
+        )
+    }
+    val sosRepository: SosRepository by lazy { sosBleBridgeRepository }
 
     init {
         relayConnectionManager.attachRelayEngine(relayEngine)
@@ -307,5 +355,6 @@ class GeoRescuXApplication : Application() {
         // runs long after startup, so touching appContainer here is safe).
         appContainer.syncRetryCoordinator.stop()
         appContainer.relayConnectionManager.stopMesh()
+        runCatching { appContainer.bleManager.shutdown() }
     }
 }
