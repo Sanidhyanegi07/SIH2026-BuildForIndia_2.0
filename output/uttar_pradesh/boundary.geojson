@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "regionId": "uttar_pradesh"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.0, 23.8],
+[84.6, 23.8],
+[84.6, 30.4],
+[77.0, 30.4],
+[77.0, 23.8]
+          ]
+        ]
+      }
+    }
+  ]
+}

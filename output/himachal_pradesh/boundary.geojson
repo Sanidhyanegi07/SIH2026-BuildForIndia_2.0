@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "regionId": "himachal_pradesh"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [75.5, 30.3],
+[79.0, 30.3],
+[79.0, 33.2],
+[75.5, 33.2],
+[75.5, 30.3]
+          ]
+        ]
+      }
+    }
+  ]
+}
