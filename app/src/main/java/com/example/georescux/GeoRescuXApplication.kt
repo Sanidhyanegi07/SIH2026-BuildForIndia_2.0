@@ -42,6 +42,7 @@ import com.example.georescux.domain.sos.StartSosUseCase
 import com.example.georescux.domain.sos.StopSosUseCase
 import com.example.georescux.domain.sos.UpdateSosLocationUseCase
 import com.example.georescux.work.WorkManagerSyncScheduler
+import com.example.georescux.data.auth.DeviceIdProvider
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +69,17 @@ class AppContainer(context: Context) {
     // Role verification for secure admin routing
     val roleResolver: com.example.georescux.domain.auth.RoleResolver by lazy { 
         com.example.georescux.data.auth.FirebaseRoleResolver(firebaseAuth) 
+    }
+
+    /**
+     * Stable per-device identity used as the BLE relay's originId.
+     * Prefers the Firebase UID (unique per account) so cloud and mesh IDs agree.
+     * Falls back to a persisted UUID so two offline devices never share the same ID
+     * (if both were "DEVICE_LOCAL" Device B's RelayEngine would reject Device A's
+     * SOS as RelayDecision.OWN_EVENT and silently drop the alert).
+     */
+    private val selfOriginId: String by lazy {
+        authRepository.currentUserId ?: DeviceIdProvider.getOrCreate(appContext)
     }
 
     // Stage 7B-3: durable, per-account record of what still needs to reach
@@ -128,9 +140,12 @@ class AppContainer(context: Context) {
 
     // BLE Mesh Relay & Durable Seen-Event Persistence
     val relayConnectionManager: com.example.georescux.data.relay.RelayConnectionManager by lazy {
-        com.example.georescux.data.relay.RelayConnectionManager(
-            com.example.georescux.data.relay.GoogleNearbyClientAdapter(appContext)
-        )
+        val nearbyAdapter = com.example.georescux.data.relay.GoogleNearbyClientAdapter(appContext)
+        val manager = com.example.georescux.data.relay.RelayConnectionManager(nearbyAdapter)
+        // FIX Bug 4: async Nearby failures (advertising/discovery failed after the call returned)
+        // call stopMesh so isRunning is reset and startMesh can retry on the next onResume.
+        nearbyAdapter.onMeshFailure = { manager.stopMesh() }
+        manager
     }
     val bleRelayTransport: com.example.georescux.data.relay.BleRelayTransport by lazy {
         com.example.georescux.data.relay.BleRelayTransport(relayConnectionManager)
@@ -140,7 +155,7 @@ class AppContainer(context: Context) {
     }
     val relayEngine: com.example.georescux.domain.relay.RelayEngine by lazy {
         com.example.georescux.domain.relay.RelayEngine(
-            selfOriginId = authRepository.currentUserId ?: "DEVICE_LOCAL",
+            selfOriginId = selfOriginId,
             transport = bleRelayTransport,
         )
     }
@@ -155,7 +170,7 @@ class AppContainer(context: Context) {
     val reportHazardUseCase: com.example.georescux.domain.hazard.ReportHazardUseCase by lazy {
         com.example.georescux.domain.hazard.ReportHazardUseCase(
             relayEngine,
-            authRepository.currentUserId ?: "DEVICE_LOCAL"
+            selfOriginId,
         )
     }
 
@@ -164,7 +179,7 @@ class AppContainer(context: Context) {
         com.example.georescux.data.sos.SosRelayRepository(
             delegate = syncingSosRepository,
             relayEngine = relayEngine,
-            selfOriginId = authRepository.currentUserId ?: "DEVICE_LOCAL",
+            selfOriginId = selfOriginId,
         )
     }
     val sosRepository: SosRepository by lazy { sosRelayRepository }
@@ -197,6 +212,17 @@ class AppContainer(context: Context) {
                     locationStatus = locStatus ?: (if (location != null) SosLocationStatus.ACQUIRED else null)
                 )
                 sosStore.addToHistory(emergency)
+
+                // Gap B fix: post a visible heads-up notification so the user on this device
+                // is immediately alerted — without this, the alert was saved silently and only
+                // visible if the user manually opened the Alerts screen.
+                if (status != "COMPLETED") {
+                    com.example.georescux.data.notification.SosAlertNotifier.notify(
+                        context = appContext,
+                        originId = event.originId,
+                        startedAtMs = event.occurredAtMs,
+                    )
+                }
             }
         }
     }
@@ -271,10 +297,6 @@ class GeoRescuXApplication : Application() {
             val coordinator = appContainer.syncRetryCoordinator
             coordinator.start()
             coordinator.retryPendingNow()
-
-            // Start offline BLE mesh relay (Google Nearby Connections)
-            val deviceName = Build.MODEL ?: "GeoRescuXDevice"
-            appContainer.relayConnectionManager.startMesh(deviceName)
         }
     }
 

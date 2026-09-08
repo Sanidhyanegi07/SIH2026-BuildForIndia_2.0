@@ -5,7 +5,19 @@ package com.example.georescux.data.relay
  */
 interface ConnectionsClientAdapter {
     fun startAdvertising(serviceId: String, localEndpointName: String, listener: ConnectionLifecycleListener): Boolean
-    fun startDiscovery(serviceId: String, listener: EndpointDiscoveryListener): Boolean
+
+    /**
+     * @param lifecycleListener Handles connection/payload events for connections initiated by
+     *                          this device (discoverer role). Must be the same listener passed
+     *                          to [startAdvertising] so the shared [PayloadCallback] always has
+     *                          a valid, non-null target — regardless of which side initiates.
+     */
+    fun startDiscovery(
+        serviceId: String,
+        discoveryListener: EndpointDiscoveryListener,
+        lifecycleListener: ConnectionLifecycleListener,
+    ): Boolean
+
     fun sendPayload(endpointId: String, payloadBytes: ByteArray): Boolean
     fun stopAdvertising()
     fun stopDiscovery()
