@@ -38,7 +38,7 @@ xmlns:tools="http://schemas.android.com/tools">
     <activity
         android:name=".ui.sos.SosActivity"
         android:exported="false"
-        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+        android:theme="@style/Theme.GeoRescuX" />
 
 </application>
 

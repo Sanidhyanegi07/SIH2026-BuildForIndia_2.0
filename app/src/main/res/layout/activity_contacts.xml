@@ -1,34 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/bg_app"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:paddingHorizontal="18dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="36dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Emergency Contacts"
+            android:textColor="@color/text_primary"
             android:textSize="22sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
             android:layout_marginBottom="16dp"
             android:text="Add the people who should be reached in an emergency."
-            android:textColor="#757575"
+            android:textColor="@color/text_muted"
             android:textSize="13sp" />
 
-        <!-- Add-contact form -->
+        <!-- Add-contact form card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/bg_card"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/divider_subtle"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -36,93 +48,152 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:text="CONTACT NAME"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
                 <EditText
                     android:id="@+id/editTextContactName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="Name"
-                    android:inputType="textPersonName" />
+                    android:background="@drawable/bg_input_field"
+                    android:hint="Full Name"
+                    android:inputType="textPersonName"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_subtle"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:text="PHONE NUMBER"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/editTextContactPhone"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="Phone number"
-                    android:inputType="phone" />
+                    android:background="@drawable/bg_input_field"
+                    android:hint="+91 98765 43210"
+                    android:inputType="phone"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_subtle"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:text="RELATIONSHIP"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/editTextContactRelationship"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    android:hint="Relationship (e.g. Mother)"
-                    android:inputType="text" />
+                    android:layout_marginBottom="14dp"
+                    android:background="@drawable/bg_input_field"
+                    android:hint="Relationship (e.g. Spouse, Mother)"
+                    android:inputType="text"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_subtle"
+                    android:textSize="14sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="4dp"
-                    android:text="Priority"
-                    android:textSize="14sp"
+                    android:layout_marginBottom="6dp"
+                    android:text="PRIORITY LEVEL"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
 
                 <RadioGroup
                     android:id="@+id/radioGroupPriority"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
                     android:orientation="horizontal">
 
                     <RadioButton
                         android:id="@+id/radioButtonPrimary"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Primary" />
+                        android:layout_marginEnd="16dp"
+                        android:buttonTint="@color/violet_accent"
+                        android:text="Primary"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp" />
 
                     <RadioButton
                         android:id="@+id/radioButtonSecondary"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:buttonTint="@color/violet_accent"
                         android:checked="true"
-                        android:text="Secondary" />
+                        android:text="Secondary"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp" />
                 </RadioGroup>
 
                 <TextView
                     android:id="@+id/textViewContactError"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:textColor="#D32F2F"
+                    android:layout_marginBottom="12dp"
+                    android:background="@drawable/bg_card_dark"
+                    android:padding="10dp"
+                    android:textColor="@color/text_error"
+                    android:textSize="13sp"
                     android:visibility="gone" />
 
                 <Button
                     android:id="@+id/buttonAddContact"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Add contact" />
+                    android:background="@drawable/bg_button_violet"
+                    android:stateListAnimator="@null"
+                    android:text="Add Contact"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@null" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Saved contacts -->
+        <!-- Saved Contacts Header -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="8dp"
-            android:text="Saved contacts"
-            android:textSize="16sp"
+            android:layout_marginBottom="10dp"
+            android:text="SAVED CONTACTS"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/textViewEmptyContacts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_card_dark"
+            android:padding="16dp"
             android:text="No emergency contacts yet. Add one above."
-            android:textColor="#757575"
-            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
             android:visibility="gone" />
 
         <LinearLayout
