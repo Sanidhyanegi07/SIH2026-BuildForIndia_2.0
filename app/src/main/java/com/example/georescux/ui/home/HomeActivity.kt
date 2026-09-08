@@ -59,6 +59,7 @@ class HomeActivity : AppCompatActivity() {
         val allGranted = permissions.values.all { it }
         if (allGranted) {
             checkAndRequestBluetooth()
+            startBleMeshIfPermissionsGranted()
         }
     }
 
@@ -220,7 +221,13 @@ class HomeActivity : AppCompatActivity() {
         } else {
             checkAndRequestBluetooth()
             checkAndRequestLocationService()
+            startBleMeshIfPermissionsGranted()
         }
+    }
+
+    private fun startBleMeshIfPermissionsGranted() {
+        val deviceName = Build.MODEL ?: "GeoRescuXDevice"
+        (application as GeoRescuXApplication).appContainer.relayConnectionManager.startMesh(deviceName)
     }
 
     private fun checkAndRequestBluetooth() {

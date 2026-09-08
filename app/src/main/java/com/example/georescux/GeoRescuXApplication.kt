@@ -243,10 +243,6 @@ class GeoRescuXApplication : Application() {
             val coordinator = appContainer.syncRetryCoordinator
             coordinator.start()
             coordinator.retryPendingNow()
-
-            // Start offline BLE mesh relay (Google Nearby Connections)
-            val deviceName = Build.MODEL ?: "GeoRescuXDevice"
-            appContainer.relayConnectionManager.startMesh(deviceName)
         }
     }
 
