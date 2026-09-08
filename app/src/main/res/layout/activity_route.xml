@@ -41,8 +41,7 @@
             android:textSize="12sp"
             android:textStyle="bold" />
 
-        <org.osmdroid.views.MapView
-            android:id="@+id/mapView"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="6dp"

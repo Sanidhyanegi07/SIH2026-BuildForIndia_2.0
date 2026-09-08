@@ -2,12 +2,12 @@ package com.example.georescux.ui.routing
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.os.Bundle
 import android.view.View
-import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,8 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import kotlinx.coroutines.Dispatchers
 import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
@@ -38,6 +36,7 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import java.io.File
+import java.util.Locale
 
 /**
  * Offline evacuation routing screen (Stage 7B-1).
@@ -111,13 +110,10 @@ class RouteActivity : AppCompatActivity() {
             )
         )
 
-        val startSpinner = findViewById<Spinner>(R.id.spinnerStartNode)
-        val destinationSpinner = findViewById<Spinner>(R.id.spinnerDestinationNode)
         val startEditText = findViewById<EditText>(R.id.editTextStartNode)
         val destinationEditText = findViewById<EditText>(R.id.editTextDestinationNode)
         
         graph?.let {
-            setupSpinners(it, startSpinner, destinationSpinner)
             renderStaticMapOverlays(it, mapView)
             it.nodes.firstOrNull { node -> node.isSafeHaven }?.id?.let { id ->
                 destinationEditText.setText(id)
@@ -131,21 +127,22 @@ class RouteActivity : AppCompatActivity() {
                 val currentGraph = graph ?: return false
                 val nearest = NearestNode.find(currentGraph, p.latitude, p.longitude) ?: return false
 
-                val currentStart = selectedNodeId(startSpinner)
-                val currentDest = selectedNodeId(destinationSpinner)
+                val currentStart = startEditText.text.toString()
 
-                if (currentStart == null || currentStart == nearest.id) {
-                    setSpinnerSelection(startSpinner, nearest.id)
+                if (currentStart.isBlank() || currentStart == nearest.id) {
+                    startEditText.setText(nearest.id)
                     Toast.makeText(this@RouteActivity, "Start node set: ${nearest.id}", Toast.LENGTH_SHORT).show()
                 } else {
-                    setSpinnerSelection(destinationSpinner, nearest.id)
+                    destinationEditText.setText(nearest.id)
                     Toast.makeText(this@RouteActivity, "Destination set: ${nearest.id}", Toast.LENGTH_SHORT).show()
                 }
 
-                viewModel.findRouteFromScreen(
-                    selectedStartNodeId = selectedNodeId(startSpinner),
-                    destinationNodeId = selectedNodeId(destinationSpinner),
-                )
+                uiScope.launch {
+                    viewModel.findRouteFromScreen(
+                        selectedStartNodeId = resolveNodeId(startEditText.text.toString()),
+                        destinationNodeId = resolveNodeId(destinationEditText.text.toString()),
+                    )
+                }
                 return true
             }
 
@@ -153,12 +150,14 @@ class RouteActivity : AppCompatActivity() {
                 p ?: return false
                 val currentGraph = graph ?: return false
                 val nearest = NearestNode.find(currentGraph, p.latitude, p.longitude) ?: return false
-                setSpinnerSelection(startSpinner, nearest.id)
+                startEditText.setText(nearest.id)
                 Toast.makeText(this@RouteActivity, "Start node set: ${nearest.id}", Toast.LENGTH_SHORT).show()
-                viewModel.findRouteFromScreen(
-                    selectedStartNodeId = selectedNodeId(startSpinner),
-                    destinationNodeId = selectedNodeId(destinationSpinner),
-                )
+                uiScope.launch {
+                    viewModel.findRouteFromScreen(
+                        selectedStartNodeId = resolveNodeId(startEditText.text.toString()),
+                        destinationNodeId = resolveNodeId(destinationEditText.text.toString()),
+                    )
+                }
                 return true
             }
         })
@@ -223,33 +222,6 @@ class RouteActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupSpinners(graph: RouteGraph, startSpinner: Spinner, destinationSpinner: Spinner) {
-        val labels = graph.nodes.map { node ->
-            if (node.isSafeHaven) "${node.id} (Safe haven)" else node.id
-        }
-        val adapter = ArrayAdapter<String>(
-            this,
-            android.R.layout.simple_spinner_item,
-            labels,
-        ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-        startSpinner.adapter = adapter
-        destinationSpinner.adapter = adapter
-
-        val firstSafeHaven = graph.nodes.indexOfFirst { it.isSafeHaven }
-        if (firstSafeHaven >= 0) destinationSpinner.setSelection(firstSafeHaven)
-    }
-
-    private fun setSpinnerSelection(spinner: Spinner, nodeId: String) {
-        val nodes = graph?.nodes ?: return
-        val index = nodes.indexOfFirst { it.id == nodeId }
-        if (index >= 0) spinner.setSelection(index)
-    }
-
-    private fun selectedNodeId(spinner: Spinner): String? {
-        val nodes = graph?.nodes ?: return null
-        return nodes.getOrNull(spinner.selectedItemPosition)?.id
-    }
-
     private suspend fun resolveNodeId(input: String): String? = withContext(Dispatchers.IO) {
         if (input.isBlank()) return@withContext null
         val nodes = graph?.nodes ?: return@withContext null
@@ -266,7 +238,7 @@ class RouteActivity : AppCompatActivity() {
             targetLng = match.groupValues[2].toDoubleOrNull()
         } else {
             try {
-                val geocoder = android.location.Geocoder(this@RouteActivity, Locale.getDefault())
+                val geocoder = Geocoder(this@RouteActivity, Locale.getDefault())
                 val results = geocoder.getFromLocationName(input, 1)
                 if (!results.isNullOrEmpty()) {
                     targetLat = results[0].latitude
@@ -284,7 +256,6 @@ class RouteActivity : AppCompatActivity() {
             val dLng = Math.toRadians(it.longitude - targetLng)
             dLat * dLat + dLng * dLng
         }?.id
-    }
     }
 
     private fun startLocationAcquisition() {
@@ -313,13 +284,8 @@ class RouteActivity : AppCompatActivity() {
 
         stepsContainer.removeAllViews()
 
-        // Selection sync FIRST: the GPS-selected start must be visible in
-        // the start spinner even before any route has been drawn.
         syncStartEditText(startEditText, ui.startNodeId)
         syncDestinationEditText(destinationEditText, ui.destinationNodeId)
-
-        syncStartSpinner(startSpinner, ui.startNodeId)
-        syncDestinationSpinner(destinationSpinner, ui.destinationNodeId)
 
         val route = ui.route
         if (route == null) {
@@ -436,4 +402,3 @@ class RouteActivity : AppCompatActivity() {
         super.onDestroy()
     }
 }
-
