@@ -65,6 +65,8 @@ class GoogleNearbyClientAdapter(
         }
         return try {
             client.startAdvertising(localEndpointName, serviceId, callback, options)
+                .addOnSuccessListener { Log.i(TAG, "Advertising started successfully for service: $serviceId") }
+                .addOnFailureListener { e -> Log.e(TAG, "Failed to start advertising: ${e.message}", e) }
             true
         } catch (e: SecurityException) {
             Log.e(TAG, "Failed to start BLE advertising due to missing permission", e)
@@ -108,6 +110,8 @@ class GoogleNearbyClientAdapter(
         }
         return try {
             client.startDiscovery(serviceId, callback, options)
+                .addOnSuccessListener { Log.i(TAG, "Discovery started successfully for service: $serviceId") }
+                .addOnFailureListener { e -> Log.e(TAG, "Failed to start discovery: ${e.message}", e) }
             true
         } catch (e: SecurityException) {
             Log.e(TAG, "Failed to start BLE discovery due to missing permission", e)
