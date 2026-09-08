@@ -108,8 +108,15 @@ class BleRelayTransportTest {
             return true
         }
 
-        override fun startDiscovery(serviceId: String, listener: EndpointDiscoveryListener): Boolean {
+        override fun startDiscovery(
+            serviceId: String,
+            discoveryListener: EndpointDiscoveryListener,
+            lifecycleListener: ConnectionLifecycleListener,
+        ): Boolean {
             isDiscovering = true
+            // Mirrors the production adapter: the discoverer role also owns
+            // the lifecycle listener so payloads/connections have a target.
+            activeListener = lifecycleListener
             return true
         }
 
