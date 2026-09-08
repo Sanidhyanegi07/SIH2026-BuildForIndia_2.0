@@ -86,8 +86,21 @@ class RouteActivity : AppCompatActivity() {
         TileArchiveInstaller.ensureExtracted(this, region)
 
         val mapView = findViewById<MapView>(R.id.mapView)
-        mapView.setTileSource(TileSourceFactory.MAPNIK)
-        mapView.setUseDataConnection(true)
+        
+        // FIX 403: Enforce strict offline map rendering.
+        // The tile source name MUST match the provider string inside the region's .sqlite archive.
+        val tileSourceName = "${region.id}-offline"
+        mapView.setTileSource(
+            XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
+        )
+        mapView.setUseDataConnection(false)
+        
+        // Check if the offline tile archive actually exists for the region
+        val expectedArchive = File(osmdroidBase, "${region.id}-tiles.sqlite")
+        val expectedZip = File(osmdroidBase, "${region.id}-tiles.zip")
+        if (!expectedArchive.exists() && !expectedZip.exists()) {
+            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.VISIBLE
+        }
         mapView.controller.setZoom(15.5)
         mapView.controller.setCenter(
             GeoPoint(
