@@ -9,6 +9,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -17,6 +18,7 @@ import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.example.georescux.data.maps.TileArchiveInstaller
+import com.example.georescux.domain.routing.NearestNode
 import com.example.georescux.domain.routing.RouteGraph
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,22 +27,26 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import kotlinx.coroutines.Dispatchers
 import org.osmdroid.tileprovider.tilesource.XYTileSource
+import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * Offline evacuation routing screen (Stage 7B-1).
  *
  * - Offline map: osmdroid renders the bundled sample-region tile archive
  *   (no network is used; the map never falls back to online tiles).
+ * - Interactive Map: tap on map to pick Start/Destination nodes using A*.
+ * - Overlays: Safe havens and road hazards visually rendered on map.
+ * - Auto-Fit: camera automatically frames the computed shortest path.
  * - GPS start: after the location permission is granted, the graph node
  *   nearest to the current location becomes the default start.
  * - Routing: hazard-aware A* via the RouteRepository (Stage 7A engine).
@@ -60,14 +66,11 @@ class RouteActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) startLocationAcquisition()
-        // Denied: manual start-node selection keeps the screen fully usable.
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // osmdroid must be configured BEFORE the MapView is inflated. All
-        // paths are app-private; the tile source is strictly offline.
         val osmdroidBase = File(filesDir, "osmdroid")
         Configuration.getInstance().osmdroidBasePath = osmdroidBase
         Configuration.getInstance().osmdroidTileCache = File(osmdroidBase, "tiles")
@@ -82,12 +85,24 @@ class RouteActivity : AppCompatActivity() {
         graph = viewModel.uiState.value.graph
         val region = MapRegionCatalog.sampleRegion
 
-        // Install the bundled offline tile archive (idempotent).
         TileArchiveInstaller.ensureExtracted(this, region)
 
         val mapView = findViewById<MapView>(R.id.mapView)
-        mapView.setTileSource(TileSourceFactory.MAPNIK)
-        mapView.setUseDataConnection(true)
+        
+        // FIX 403: Enforce strict offline map rendering.
+        // The tile source name MUST match the provider string inside the region's .sqlite archive.
+        val tileSourceName = "${region.id}-offline"
+        mapView.setTileSource(
+            XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
+        )
+        mapView.setUseDataConnection(false)
+        
+        // Check if the offline tile archive actually exists for the region
+        val expectedArchive = File(osmdroidBase, "${region.id}-tiles.sqlite")
+        val expectedZip = File(osmdroidBase, "${region.id}-tiles.zip")
+        if (!expectedArchive.exists() && !expectedZip.exists()) {
+            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.VISIBLE
+        }
         mapView.controller.setZoom(15.5)
         mapView.controller.setCenter(
             GeoPoint(
@@ -96,13 +111,58 @@ class RouteActivity : AppCompatActivity() {
             )
         )
 
+        val startSpinner = findViewById<Spinner>(R.id.spinnerStartNode)
+        val destinationSpinner = findViewById<Spinner>(R.id.spinnerDestinationNode)
         val startEditText = findViewById<EditText>(R.id.editTextStartNode)
         val destinationEditText = findViewById<EditText>(R.id.editTextDestinationNode)
         
-        // Set default destination text if available
-        graph?.nodes?.firstOrNull { it.isSafeHaven }?.id?.let {
-            destinationEditText.setText(it)
+        graph?.let {
+            setupSpinners(it, startSpinner, destinationSpinner)
+            renderStaticMapOverlays(it, mapView)
+            it.nodes.firstOrNull { node -> node.isSafeHaven }?.id?.let { id ->
+                destinationEditText.setText(id)
+            }
         }
+
+        // Map touch / tap listener to select nodes directly on the map
+        val mapEventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                p ?: return false
+                val currentGraph = graph ?: return false
+                val nearest = NearestNode.find(currentGraph, p.latitude, p.longitude) ?: return false
+
+                val currentStart = selectedNodeId(startSpinner)
+                val currentDest = selectedNodeId(destinationSpinner)
+
+                if (currentStart == null || currentStart == nearest.id) {
+                    setSpinnerSelection(startSpinner, nearest.id)
+                    Toast.makeText(this@RouteActivity, "Start node set: ${nearest.id}", Toast.LENGTH_SHORT).show()
+                } else {
+                    setSpinnerSelection(destinationSpinner, nearest.id)
+                    Toast.makeText(this@RouteActivity, "Destination set: ${nearest.id}", Toast.LENGTH_SHORT).show()
+                }
+
+                viewModel.findRouteFromScreen(
+                    selectedStartNodeId = selectedNodeId(startSpinner),
+                    destinationNodeId = selectedNodeId(destinationSpinner),
+                )
+                return true
+            }
+
+            override fun longPressHelper(p: GeoPoint?): Boolean {
+                p ?: return false
+                val currentGraph = graph ?: return false
+                val nearest = NearestNode.find(currentGraph, p.latitude, p.longitude) ?: return false
+                setSpinnerSelection(startSpinner, nearest.id)
+                Toast.makeText(this@RouteActivity, "Start node set: ${nearest.id}", Toast.LENGTH_SHORT).show()
+                viewModel.findRouteFromScreen(
+                    selectedStartNodeId = selectedNodeId(startSpinner),
+                    destinationNodeId = selectedNodeId(destinationSpinner),
+                )
+                return true
+            }
+        })
+        mapView.overlays.add(0, mapEventsOverlay)
 
         findViewById<Button>(R.id.buttonFindRoute).setOnClickListener {
             uiScope.launch {
@@ -122,8 +182,6 @@ class RouteActivity : AppCompatActivity() {
             }
         }
 
-        // GPS start selection: request the permission only when needed and
-        // fall back to manual selection when unavailable or denied.
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
@@ -137,6 +195,59 @@ class RouteActivity : AppCompatActivity() {
         uiScope.launch {
             viewModel.uiState.collect { render(it, startEditText, destinationEditText) }
         }
+    }
+
+    private fun renderStaticMapOverlays(graph: RouteGraph, mapView: MapView) {
+        // Render Safe Havens
+        graph.nodes.filter { it.isSafeHaven }.forEach { safeHaven ->
+            val marker = Marker(mapView)
+            marker.position = GeoPoint(safeHaven.latitude, safeHaven.longitude)
+            marker.title = "🏥 Safe Haven: ${safeHaven.id}"
+            marker.snippet = "Evacuation Safe Zone"
+            mapView.overlays.add(marker)
+        }
+
+        // Render Hazards
+        graph.hazards.forEach { hazard ->
+            val fromNode = graph.node(hazard.fromNodeId)
+            val toNode = graph.node(hazard.toNodeId)
+            if (fromNode != null && toNode != null) {
+                val midLat = (fromNode.latitude + toNode.latitude) / 2.0
+                val midLng = (fromNode.longitude + toNode.longitude) / 2.0
+                val hazardMarker = Marker(mapView)
+                hazardMarker.position = GeoPoint(midLat, midLng)
+                hazardMarker.title = "⚠️ Hazard: ${hazard.id}"
+                hazardMarker.snippet = "Penalty: +${hazard.penaltyMeters.toInt()}m"
+                mapView.overlays.add(hazardMarker)
+            }
+        }
+    }
+
+    private fun setupSpinners(graph: RouteGraph, startSpinner: Spinner, destinationSpinner: Spinner) {
+        val labels = graph.nodes.map { node ->
+            if (node.isSafeHaven) "${node.id} (Safe haven)" else node.id
+        }
+        val adapter = ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_spinner_item,
+            labels,
+        ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        startSpinner.adapter = adapter
+        destinationSpinner.adapter = adapter
+
+        val firstSafeHaven = graph.nodes.indexOfFirst { it.isSafeHaven }
+        if (firstSafeHaven >= 0) destinationSpinner.setSelection(firstSafeHaven)
+    }
+
+    private fun setSpinnerSelection(spinner: Spinner, nodeId: String) {
+        val nodes = graph?.nodes ?: return
+        val index = nodes.indexOfFirst { it.id == nodeId }
+        if (index >= 0) spinner.setSelection(index)
+    }
+
+    private fun selectedNodeId(spinner: Spinner): String? {
+        val nodes = graph?.nodes ?: return null
+        return nodes.getOrNull(spinner.selectedItemPosition)?.id
     }
 
     private suspend fun resolveNodeId(input: String): String? = withContext(Dispatchers.IO) {
@@ -174,12 +285,11 @@ class RouteActivity : AppCompatActivity() {
             dLat * dLat + dLng * dLng
         }?.id
     }
+    }
 
     private fun startLocationAcquisition() {
         if (locationStarted) return
         locationStarted = true
-        // One-shot: the first fix selects the nearest graph node, then the
-        // acquisition stops (no continuous tracking on this screen).
         container().locationRepository.startAcquisition { fix ->
             runOnUiThread {
                 viewModel.setStartFromLocation(fix.latitude, fix.longitude)
@@ -195,6 +305,7 @@ class RouteActivity : AppCompatActivity() {
         startEditText: EditText,
         destinationEditText: EditText,
     ) {
+        val mapView = findViewById<MapView>(R.id.mapView)
         val stepsContainer = findViewById<LinearLayout>(R.id.routeStepsContainer)
         val noRouteText = findViewById<TextView>(R.id.textViewNoRoute)
         val summaryText = findViewById<TextView>(R.id.textViewRouteSummary)
@@ -206,6 +317,9 @@ class RouteActivity : AppCompatActivity() {
         // the start spinner even before any route has been drawn.
         syncStartEditText(startEditText, ui.startNodeId)
         syncDestinationEditText(destinationEditText, ui.destinationNodeId)
+
+        syncStartSpinner(startSpinner, ui.startNodeId)
+        syncDestinationSpinner(destinationSpinner, ui.destinationNodeId)
 
         val route = ui.route
         if (route == null) {
@@ -245,6 +359,15 @@ class RouteActivity : AppCompatActivity() {
                 "$stepNumber. $fromNodeId → $toNodeId"
             val legDistance = ui.graph?.edgeBetween(fromNodeId, toNodeId)?.distanceMeters
             row.findViewById<TextView>(R.id.textStepDetail).text = legDistance?.let { "$it m" } ?: ""
+
+            // Tapping a step focuses the map camera on that segment's starting node
+            row.setOnClickListener {
+                ui.graph?.node(fromNodeId)?.let { node ->
+                    mapView.controller.animateTo(GeoPoint(node.latitude, node.longitude))
+                    mapView.controller.setZoom(17.5)
+                }
+            }
+
             stepNumber++
             stepsContainer.addView(row)
         }
@@ -282,6 +405,19 @@ class RouteActivity : AppCompatActivity() {
         }
         points.lastOrNull()?.let { destinationMarker.position = it }
 
+        // Auto-fit map camera bounds to frame the calculated A* route
+        try {
+            if (points.size == 1) {
+                mapView.controller.setCenter(points.first())
+                mapView.controller.setZoom(17.0)
+            } else {
+                val boundingBox = BoundingBox.fromGeoPoints(points)
+                mapView.zoomToBoundingBox(boundingBox, true, 80)
+            }
+        } catch (_: Exception) {
+            mapView.controller.setCenter(points.first())
+        }
+
         mapView.invalidate()
     }
 
@@ -300,3 +436,4 @@ class RouteActivity : AppCompatActivity() {
         super.onDestroy()
     }
 }
+

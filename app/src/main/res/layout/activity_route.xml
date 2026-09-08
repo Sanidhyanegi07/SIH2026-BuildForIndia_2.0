@@ -32,8 +32,17 @@
             android:textColor="@color/text_muted"
             android:textSize="13sp" />
 
-        <!-- Map Container Card -->
-        <com.google.android.material.card.MaterialCardView
+<TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:text="💡 Tap anywhere on map to pick Start / Destination"
+            android:textColor="#1976D2"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <org.osmdroid.views.MapView
+            android:id="@+id/mapView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="6dp"
