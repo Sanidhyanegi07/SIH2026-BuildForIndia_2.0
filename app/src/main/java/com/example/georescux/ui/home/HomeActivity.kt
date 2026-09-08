@@ -10,7 +10,17 @@ import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.domain.sos.SosEvent
@@ -37,6 +47,24 @@ import java.util.Locale
  * cancels silently and creates no SOS record.
  */
 class HomeActivity : AppCompatActivity() {
+
+    private val bluetoothAdapter: BluetoothAdapter? by lazy {
+        val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager
+        bluetoothManager?.adapter
+    }
+
+    private val blePermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (allGranted) {
+            checkAndRequestBluetooth()
+        }
+    }
+
+    private val enableBluetoothLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { _ -> }
 
     private val holdHandler = Handler(Looper.getMainLooper())
     private var holdProgressAnimator: ObjectAnimator? = null
@@ -155,6 +183,8 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        checkBlePermissionsAndState()
+
         // If an emergency is active (e.g. the app restarted while SOS ran),
         // show the live emergency screen right away.
         if ((application as GeoRescuXApplication).appContainer.sosRepository.getActiveEmergency() != null) {
@@ -164,6 +194,52 @@ class HomeActivity : AppCompatActivity() {
         // Refresh the latest-alert summary so a newly completed SOS
         // appears here without any unrelated changes.
         refreshRecentActivitySummary()
+    }
+
+    private fun checkBlePermissionsAndState() {
+        val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_ADVERTISE,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+        } else {
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        }
+
+        val missing = requiredPermissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missing.isNotEmpty()) {
+            blePermissionsLauncher.launch(missing.toTypedArray())
+        } else {
+            checkAndRequestBluetooth()
+            checkAndRequestLocationService()
+        }
+    }
+
+    private fun checkAndRequestBluetooth() {
+        val adapter = bluetoothAdapter
+        if (adapter != null && !adapter.isEnabled) {
+            val enableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            enableBluetoothLauncher.launch(enableIntent)
+        }
+    }
+
+    private fun checkAndRequestLocationService() {
+        val locationManager = getSystemService(LOCATION_SERVICE) as? LocationManager
+        val isGpsEnabled = locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true
+        val isNetworkEnabled = locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true
+        if (!isGpsEnabled && !isNetworkEnabled) {
+            try {
+                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            } catch (_: Exception) { }
+        }
     }
 
     private fun refreshRecentActivitySummary() {

@@ -2,6 +2,7 @@ package com.example.georescux
 
 import android.app.Application
 import android.content.Context
+import android.os.Build
 import com.example.georescux.data.auth.AuthRepositoryImpl
 import com.example.georescux.data.contacts.ContactLocalStore
 import com.example.georescux.data.contacts.ContactsRepositoryImpl
@@ -25,13 +26,17 @@ import com.example.georescux.data.sync.SyncingContactsRepository
 import com.example.georescux.data.sync.SyncStateStore
 import com.example.georescux.data.sync.SyncingSosRepository
 import com.example.georescux.data.sync.SosBackup
+import com.example.georescux.domain.incident.IncidentType
 import com.example.georescux.domain.repository.AuthRepository
 import com.example.georescux.domain.repository.ContactsRepository
 import com.example.georescux.domain.repository.LocationRepository
 import com.example.georescux.domain.repository.RouteRepository
 import com.example.georescux.domain.repository.SosRepository
 import com.example.georescux.domain.sos.CancelSosUseCase
+import com.example.georescux.domain.sos.SosEmergency
+import com.example.georescux.domain.sos.SosLocationStatus
 import com.example.georescux.domain.sos.GetActiveSosUseCase
+import com.example.georescux.domain.sos.SosLocation
 import com.example.georescux.domain.sos.StartSosUseCase
 import com.example.georescux.domain.sos.StopSosUseCase
 import com.example.georescux.domain.sos.UpdateSosLocationUseCase
@@ -140,6 +145,31 @@ class AppContainer(context: Context) {
         relayConnectionManager.attachRelayEngine(relayEngine)
         relayConnectionManager.setOnEventReceivedListener { envelope ->
             hazardEventRouteBridge.onEventAccepted(envelope.event)
+
+            if (envelope.event.type == IncidentType.SOS) {
+                val event = envelope.event
+                val status = event.payload["status"] ?: "ACTIVE"
+                val locationStatusName = event.payload["locationStatus"]
+                val locStatus = locationStatusName?.let { runCatching { SosLocationStatus.valueOf(it) }.getOrNull() }
+                val location = if (event.latitude != null && event.longitude != null) {
+                    SosLocation(
+                        latitude = event.latitude,
+                        longitude = event.longitude,
+                        accuracyMeters = 0f,
+                        timestampMs = event.occurredAtMs,
+                        provider = "mesh_relay"
+                    )
+                } else null
+
+                val emergency = SosEmergency(
+                    id = "MESH_${event.originId}_${event.eventId}",
+                    startedAtMs = event.occurredAtMs,
+                    stoppedAtMs = if (status == "COMPLETED") event.occurredAtMs + 1000L else null,
+                    location = location,
+                    locationStatus = locStatus ?: (if (location != null) SosLocationStatus.ACQUIRED else null)
+                )
+                sosStore.addToHistory(emergency)
+            }
         }
     }
 
@@ -213,6 +243,10 @@ class GeoRescuXApplication : Application() {
             val coordinator = appContainer.syncRetryCoordinator
             coordinator.start()
             coordinator.retryPendingNow()
+
+            // Start offline BLE mesh relay (Google Nearby Connections)
+            val deviceName = Build.MODEL ?: "GeoRescuXDevice"
+            appContainer.relayConnectionManager.startMesh(deviceName)
         }
     }
 
@@ -222,5 +256,6 @@ class GeoRescuXApplication : Application() {
         // only — on devices the process-lifetime callback is intentional;
         // runs long after startup, so touching appContainer here is safe).
         appContainer.syncRetryCoordinator.stop()
+        appContainer.relayConnectionManager.stopMesh()
     }
 }

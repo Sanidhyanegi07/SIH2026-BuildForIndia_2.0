@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.XYTileSource
@@ -113,6 +114,9 @@ class RouteActivity : AppCompatActivity() {
         
         graph?.let {
             renderStaticMapOverlays(it, mapView)
+            it.nodes.firstOrNull { node -> node.isSafeHaven }?.id?.let { id ->
+                destinationEditText.setText(id)
+            }
         }
 
         // Map touch / tap listener to select nodes directly on the map
@@ -159,17 +163,21 @@ class RouteActivity : AppCompatActivity() {
         mapView.overlays.add(0, mapEventsOverlay)
 
         findViewById<Button>(R.id.buttonFindRoute).setOnClickListener {
-            viewModel.findRouteFromScreen(
-                selectedStartNodeId = selectedNodeId(startSpinner),
-                destinationNodeId = selectedNodeId(destinationSpinner),
-            )
+            uiScope.launch {
+                viewModel.findRouteFromScreen(
+                    selectedStartNodeId = resolveNodeId(startEditText.text.toString()),
+                    destinationNodeId = resolveNodeId(destinationEditText.text.toString()),
+                )
+            }
         }
 
         findViewById<Button>(R.id.buttonReroute).setOnClickListener {
-            viewModel.reroute(
-                fallbackStartNodeId = selectedNodeId(startSpinner),
-                fallbackDestinationNodeId = selectedNodeId(destinationSpinner),
-            )
+            uiScope.launch {
+                viewModel.reroute(
+                    fallbackStartNodeId = resolveNodeId(startEditText.text.toString()),
+                    fallbackDestinationNodeId = resolveNodeId(destinationEditText.text.toString()),
+                )
+            }
         }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -183,7 +191,7 @@ class RouteActivity : AppCompatActivity() {
         }
 
         uiScope.launch {
-            viewModel.uiState.collect { render(it, startSpinner, destinationSpinner) }
+            viewModel.uiState.collect { render(it, startEditText, destinationEditText) }
         }
     }
 
@@ -248,7 +256,6 @@ class RouteActivity : AppCompatActivity() {
             dLat * dLat + dLng * dLng
         }?.id
     }
-    }
 
     private fun startLocationAcquisition() {
         if (locationStarted) return
@@ -265,8 +272,8 @@ class RouteActivity : AppCompatActivity() {
 
     private fun render(
         ui: RouteUiState,
-        startSpinner: Spinner,
-        destinationSpinner: Spinner,
+        startEditText: EditText,
+        destinationEditText: EditText,
     ) {
         val mapView = findViewById<MapView>(R.id.mapView)
         val stepsContainer = findViewById<LinearLayout>(R.id.routeStepsContainer)
@@ -379,18 +386,14 @@ class RouteActivity : AppCompatActivity() {
         mapView.invalidate()
     }
 
-    private fun syncStartSpinner(spinner: Spinner, startNodeId: String?) {
+    private fun syncStartEditText(editText: EditText, startNodeId: String?) {
         startNodeId ?: return
-        val nodes = graph?.nodes ?: return
-        val index = nodes.indexOfFirst { it.id == startNodeId }
-        if (index >= 0 && spinner.selectedItemPosition != index) spinner.setSelection(index)
+        if (editText.text.isBlank()) editText.setText(startNodeId)
     }
 
-    private fun syncDestinationSpinner(spinner: Spinner, destinationNodeId: String?) {
+    private fun syncDestinationEditText(editText: EditText, destinationNodeId: String?) {
         destinationNodeId ?: return
-        val nodes = graph?.nodes ?: return
-        val index = nodes.indexOfFirst { it.id == destinationNodeId }
-        if (index >= 0 && spinner.selectedItemPosition != index) spinner.setSelection(index)
+        if (editText.text.isBlank()) editText.setText(destinationNodeId)
     }
 
     override fun onDestroy() {

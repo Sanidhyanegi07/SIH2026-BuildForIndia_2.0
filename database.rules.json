@@ -1,20 +1,24 @@
 {
   "rules": {
     "sos_alerts": {
+      ".read": "auth != null",
+      ".write": "auth != null",
       "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || auth.token.admin === true)",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
     "contacts": {
+      ".read": "auth != null",
+      ".write": "auth != null",
       "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || auth.token.admin === true)",
-        ".write": "auth != null && auth.uid == $uid"
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
     "admin_data": {
-      ".read": "auth != null && auth.token.admin === true",
-      ".write": "auth != null && auth.token.admin === true"
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }

@@ -25,6 +25,7 @@ class GoogleNearbyClientAdapter(
 ) : ConnectionsClientAdapter {
 
     private var activeLifecycleListener: ConnectionLifecycleListener? = null
+    private var activeEndpointName: String = "GeoRescuXDevice"
 
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
@@ -40,6 +41,7 @@ class GoogleNearbyClientAdapter(
         localEndpointName: String,
         listener: ConnectionLifecycleListener,
     ): Boolean {
+        activeEndpointName = localEndpointName
         activeLifecycleListener = listener
         val options = AdvertisingOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build()
         val callback = object : ConnectionLifecycleCallback() {
@@ -66,7 +68,7 @@ class GoogleNearbyClientAdapter(
             override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
                 listener.onEndpointFound(endpointId, info.endpointName, info.serviceId)
                 val lifecycleListener = activeLifecycleListener ?: return
-                client.requestConnection(endpointId, endpointId, object : ConnectionLifecycleCallback() {
+                client.requestConnection(activeEndpointName, endpointId, object : ConnectionLifecycleCallback() {
                     override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
                         lifecycleListener.onConnectionInitiated(endpointId, info.endpointName)
                         client.acceptConnection(endpointId, payloadCallback)

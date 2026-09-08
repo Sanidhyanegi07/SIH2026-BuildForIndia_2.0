@@ -4,6 +4,7 @@ import com.example.georescux.domain.incident.IncidentEvent
 import com.example.georescux.domain.security.AuthVerdict
 import com.example.georescux.domain.security.EventAuthenticator
 import com.example.georescux.domain.security.ReplayGuard
+import java.util.Collections
 
 /**
  * Phone-to-phone relay core — the pure, device-independent half of the
@@ -52,7 +53,9 @@ class RelayEngine(
 ) {
 
     private val seenEventIds = HashSet<String>()
+    private val activeEnvelopes = Collections.synchronizedList(mutableListOf<RelayEnvelope>())
     private val outbox = HashMap<String, MutableList<RelayEnvelope>>()
+    private val sentPeersMap = HashMap<String, MutableSet<String>>()
 
     /** A locally produced event enters the relay (e.g. SOS, injected hazard). */
     fun onLocalEvent(event: IncidentEvent, payload: String = event.canonicalString()): RelayDecision =
@@ -64,11 +67,31 @@ class RelayEngine(
 
     /** Flush pending sends to a peer that became reachable again. */
     fun onPeerAvailable(peerId: String): Int {
-        val pending = outbox.remove(peerId) ?: return 0
         var delivered = 0
-        pending.forEach { envelope ->
-            if (transport.send(peerId, envelope.payload)) delivered++
-            else outbox.getOrPut(peerId) { mutableListOf() }.add(envelope)
+        val peerPending = outbox.remove(peerId) ?: emptyList()
+        peerPending.forEach { envelope ->
+            val sentSet = sentPeersMap.getOrPut(envelope.event.eventId) { HashSet() }
+            if (peerId !in sentSet) {
+                if (transport.send(peerId, envelope.payload)) {
+                    sentSet.add(peerId)
+                    delivered++
+                } else {
+                    outbox.getOrPut(peerId) { mutableListOf() }.add(envelope)
+                }
+            }
+        }
+
+        val unexpired = activeEnvelopes.filter { !isExpired(it.event) && it.fromPeerId != peerId }
+        unexpired.forEach { envelope ->
+            val sentSet = sentPeersMap.getOrPut(envelope.event.eventId) { HashSet() }
+            if (peerId !in sentSet) {
+                if (transport.send(peerId, envelope.payload)) {
+                    sentSet.add(peerId)
+                    delivered++
+                } else {
+                    outbox.getOrPut(peerId) { mutableListOf() }.add(envelope)
+                }
+            }
         }
         return delivered
     }
@@ -91,15 +114,28 @@ class RelayEngine(
             return RelayDecision.STALE_SEQUENCE
         }
         if (!seenEventIds.add(event.eventId)) return RelayDecision.DUPLICATE
+        
+        envelope.fromPeerId?.let { sender ->
+            sentPeersMap.getOrPut(event.eventId) { HashSet() }.add(sender)
+        }
+        
         return forward(envelope)
     }
 
     private fun forward(envelope: RelayEnvelope): RelayDecision {
+        activeEnvelopes.add(envelope)
         var anySuccess = false
-        val peers = transport.availablePeers().filter { it != envelope.fromPeerId }
-        peers.forEach { peer ->
-            if (transport.send(peer, envelope.payload)) anySuccess = true
-            else outbox.getOrPut(peer) { mutableListOf() }.add(envelope)
+        val sentSet = sentPeersMap.getOrPut(envelope.event.eventId) { HashSet() }
+        val peers = transport.availablePeers().filter { it != envelope.fromPeerId && it !in sentSet }
+        if (peers.isNotEmpty()) {
+            peers.forEach { peer ->
+                if (transport.send(peer, envelope.payload)) {
+                    sentSet.add(peer)
+                    anySuccess = true
+                } else {
+                    outbox.getOrPut(peer) { mutableListOf() }.add(envelope)
+                }
+            }
         }
         return if (anySuccess) RelayDecision.ACCEPTED_FORWARDED else RelayDecision.ACCEPTED_QUEUED
     }
