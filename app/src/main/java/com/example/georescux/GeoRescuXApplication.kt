@@ -59,6 +59,11 @@ class AppContainer(context: Context) {
     // The single doorway to authentication features.
     val authRepository: AuthRepository by lazy { AuthRepositoryImpl(firebaseAuth) }
 
+    // Role verification for secure admin routing
+    val roleResolver: com.example.georescux.domain.auth.RoleResolver by lazy { 
+        com.example.georescux.data.auth.FirebaseRoleResolver(firebaseAuth) 
+    }
+
     // Stage 7B-3: durable, per-account record of what still needs to reach
     // Firebase; survives process death and is never cloud data. ONE instance
     // is shared by every syncing repository.

@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import com.example.georescux.data.auth.UserRole
+import com.example.georescux.domain.auth.RoleResolver
+
 /**
  * What the login/register screens currently show.
  * The state survives screen rotation because the ViewModel outlives the Activity.
@@ -21,6 +24,7 @@ data class AuthUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isDone: Boolean = false, // login or registration succeeded -> navigate to Home
+    val role: UserRole? = null // Resolved role for routing
 )
 
 /**
@@ -28,7 +32,10 @@ data class AuthUiState(
  * progress as a StateFlow. Activities observe this state; they never touch
  * FirebaseAuth directly.
  */
-class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
+class AuthViewModel(
+    private val authRepository: AuthRepository,
+    private val roleResolver: RoleResolver
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -47,9 +54,15 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
         if (_uiState.value.isLoading) return // ignore double taps while a request is running
         _uiState.value = AuthUiState(isLoading = true)
         authScope.launch {
-            _uiState.value = when (val result = action()) {
-                is AuthResult.Success -> AuthUiState(isDone = true)
-                is AuthResult.Error -> AuthUiState(errorMessage = result.message)
+            when (val result = action()) {
+                is AuthResult.Success -> {
+                    // Resolve role securely after successful login
+                    val resolvedRole = roleResolver.resolveRole()
+                    _uiState.value = AuthUiState(isDone = true, role = resolvedRole)
+                }
+                is AuthResult.Error -> {
+                    _uiState.value = AuthUiState(errorMessage = result.message)
+                }
             }
         }
     }
@@ -60,10 +73,13 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     }
 
     /** Creates the ViewModel with the repository from the AppContainer. */
-    class Factory(private val authRepository: AuthRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val authRepository: AuthRepository,
+        private val roleResolver: RoleResolver
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AuthViewModel(authRepository) as T
+            return AuthViewModel(authRepository, roleResolver) as T
         }
     }
 }

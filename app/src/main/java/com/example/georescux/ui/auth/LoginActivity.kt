@@ -34,7 +34,7 @@ class LoginActivity : AppCompatActivity() {
         setContentView(R.layout.activity_login)
 
         val container = (application as GeoRescuXApplication).appContainer
-        authViewModel = ViewModelProvider(this, AuthViewModel.Factory(container.authRepository))
+        authViewModel = ViewModelProvider(this, AuthViewModel.Factory(container.authRepository, container.roleResolver))
             .get(AuthViewModel::class.java)
 
         val emailInput = findViewById<EditText>(R.id.editTextEmail)
@@ -73,10 +73,19 @@ class LoginActivity : AppCompatActivity() {
                     errorText.visibility = View.GONE
                 }
                 if (state.isDone) {
-                    openHome()
+                    if (state.role == com.example.georescux.data.auth.UserRole.ADMIN) {
+                        openAdminDashboard()
+                    } else {
+                        openHome()
+                    }
                 }
             }
         }
+    }
+
+    private fun openAdminDashboard() {
+        startActivity(Intent(this, com.example.georescux.ui.admin.AdminDashboardActivity::class.java))
+        finish()
     }
 
     private fun openHome() {
