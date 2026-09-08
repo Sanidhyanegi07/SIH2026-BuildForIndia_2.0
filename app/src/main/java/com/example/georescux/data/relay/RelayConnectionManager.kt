@@ -16,6 +16,10 @@ class RelayConnectionManager(
 
     private val connectedPeersSet = Collections.synchronizedSet(HashSet<String>())
     private var relayEngine: RelayEngine? = null
+    @Volatile
+    private var isRunning = false
+
+    val isMeshRunning: Boolean get() = isRunning
 
     fun attachRelayEngine(engine: RelayEngine) {
         this.relayEngine = engine
@@ -30,6 +34,9 @@ class RelayConnectionManager(
     }
 
     fun startMesh(localEndpointName: String) {
+        if (isRunning) return
+        isRunning = true
+
         val lifecycleListener = object : ConnectionLifecycleListener {
             override fun onConnectionInitiated(endpointId: String, endpointName: String) {}
 
@@ -74,6 +81,8 @@ class RelayConnectionManager(
     }
 
     fun stopMesh() {
+        if (!isRunning) return
+        isRunning = false
         clientAdapter.stopAdvertising()
         clientAdapter.stopDiscovery()
         connectedPeersSet.clear()
