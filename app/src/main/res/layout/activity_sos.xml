@@ -1,54 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/sosRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#B71C1C"
+    android:background="@color/bg_app"
     android:clickable="true"
     android:focusable="true">
 
-    <!-- Countdown mode: tap anywhere on the red screen to cancel -->
+    <!-- Countdown mode: tap anywhere on the screen to cancel -->
     <LinearLayout
         android:id="@+id/countdownContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="24dp">
 
+        <!-- Emergency SOS pill badge -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/bg_badge_pill"
+            android:backgroundTint="@color/sos_red"
             android:text="EMERGENCY SOS"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
+            android:textColor="@color/white"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
+        <!-- Big countdown number -->
         <TextView
             android:id="@+id/textViewCountdown"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginVertical="24dp"
             android:text="5"
-            android:textColor="#FFFFFF"
-            android:textSize="110sp"
+            android:textColor="@color/sos_red"
+            android:textSize="120sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
             android:text="Sending emergency alert…"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center_horizontal"
-            android:padding="24dp"
+            android:layout_marginTop="8dp"
+            android:text="Notifying emergency contacts &amp; responders"
+            android:textColor="@color/text_muted"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:background="@drawable/bg_card_dark"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="10dp"
             android:text="Tap anywhere to cancel"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp" />
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <!-- Active emergency mode -->
@@ -61,68 +78,112 @@
         android:padding="24dp"
         android:visibility="gone">
 
+        <!-- Alert badge -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/bg_badge_pill"
+            android:backgroundTint="@color/sos_red"
             android:text="EMERGENCY ACTIVE"
-            android:textColor="#FFFFFF"
-            android:textSize="30sp"
+            android:textColor="@color/white"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
+        <!-- Warning icon -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Emergency is active"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp" />
+            android:layout_marginTop="24dp"
+            android:text="🚨"
+            android:textSize="54sp" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Emergency Broadcast Live"
+            android:textColor="@color/text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <!-- Started at timestamp -->
         <TextView
             android:id="@+id/textViewSosInfo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:textColor="#FFCDD2"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/text_secondary"
             android:textSize="14sp" />
 
-        <!-- Location status (Phase 2) -->
-        <TextView
-            android:id="@+id/textViewLocationStatus"
-            android:layout_width="wrap_content"
+        <!-- Location card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Getting location..."
-            android:textColor="#FFFFFF"
-            android:textSize="14sp" />
+            android:layout_marginTop="28dp"
+            app:cardBackgroundColor="@color/bg_card"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/divider_subtle"
+            app:strokeWidth="1dp">
 
-        <TextView
-            android:id="@+id/textViewLocationCoords"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="#FFCDD2"
-            android:textSize="13sp"
-            android:visibility="gone" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-        <Button
-            android:id="@+id/buttonGrantLocation"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:backgroundTint="#FFFFFF"
-            android:text="Grant"
-            android:textColor="#B71C1C"
-            android:textSize="14sp"
-            android:visibility="gone" />
+                <TextView
+                    android:id="@+id/textViewLocationStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Getting location..."
+                    android:textColor="@color/mesh_sky"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
+                <TextView
+                    android:id="@+id/textViewLocationCoords"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/buttonGrantLocation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_button_violet"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="8dp"
+                    android:stateListAnimator="@null"
+                    android:text="Grant Location"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    app:backgroundTint="@null" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Stop Emergency button -->
         <Button
             android:id="@+id/buttonStopEmergency"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
-            android:backgroundTint="#FFFFFF"
+            android:background="@drawable/bg_button_white"
+            android:stateListAnimator="@null"
             android:text="Stop Emergency"
-            android:textColor="#B71C1C"
-            android:textSize="18sp" />
+            android:textAllCaps="false"
+            android:textColor="@color/sos_red_dark"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:backgroundTint="@null" />
+
     </LinearLayout>
 </FrameLayout>

@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "sos_alerts": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.admin === true)",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "contacts": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.admin === true)",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "admin_data": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true"
+    }
+  }
+}

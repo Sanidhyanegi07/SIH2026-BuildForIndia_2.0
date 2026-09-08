@@ -34,7 +34,7 @@ class RegisterActivity : AppCompatActivity() {
         setContentView(R.layout.activity_register)
 
         val container = (application as GeoRescuXApplication).appContainer
-        authViewModel = ViewModelProvider(this, AuthViewModel.Factory(container.authRepository))
+        authViewModel = ViewModelProvider(this, AuthViewModel.Factory(container.authRepository, container.roleResolver))
             .get(AuthViewModel::class.java)
 
         val emailInput = findViewById<EditText>(R.id.editTextEmail)
