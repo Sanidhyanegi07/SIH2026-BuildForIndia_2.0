@@ -10,10 +10,15 @@ xmlns:tools="http://schemas.android.com/tools">
     <!-- BLE Mesh Transport & Google Nearby Connections permissions (Android 12+) -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="31" />
+    <!-- FIX Bug 3: removed usesPermissionFlags="neverForLocation" — Nearby Connections
+         associates BLE scan results with location internally on some OEM firmwares
+         (Samsung, Xiaomi, etc.); the flag caused startDiscovery to fail silently. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:targetApi="31" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" tools:targetApi="33" />
+    <!-- Gap B fix: required on Android 13+ to post BLE SOS alert notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:targetApi="33" />
 
 <application
     android:name=".GeoRescuXApplication"

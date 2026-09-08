@@ -56,8 +56,18 @@ class HomeActivity : AppCompatActivity() {
     private val blePermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val allGranted = permissions.values.all { it }
-        if (allGranted) {
+        // FIX Bug 6: use per-permission checks for the critical BLE subset instead of
+        // all { it }, which would block mesh startup if NEARBY_WIFI_DEVICES (optional on
+        // Android 12) or any other non-critical permission was denied.
+        val criticalGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions[Manifest.permission.BLUETOOTH_SCAN] == true &&
+                permissions[Manifest.permission.BLUETOOTH_ADVERTISE] == true &&
+                permissions[Manifest.permission.BLUETOOTH_CONNECT] == true
+        } else {
+            permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        }
+        if (criticalGranted) {
             checkAndRequestBluetooth()
             startBleMeshIfPermissionsGranted()
         }
@@ -207,6 +217,8 @@ class HomeActivity : AppCompatActivity() {
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 list.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+                // Request notification permission here so BLE SOS alerts can be shown
+                list.add(Manifest.permission.POST_NOTIFICATIONS)
             }
             list.toTypedArray()
         } else {

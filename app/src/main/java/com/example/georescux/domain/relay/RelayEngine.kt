@@ -98,6 +98,16 @@ class RelayEngine(
 
     fun pendingCountFor(peerId: String): Int = outbox[peerId]?.size ?: 0
 
+    /**
+     * Directly marks [eventId] as seen without running it through the full ingest pipeline.
+     * Used by [com.example.georescux.data.relay.DurableRelayEngine] to restore persisted
+     * seen-event state on startup without triggering the [ReplayGuard] sequence check
+     * (which would produce [RelayDecision.STALE_SEQUENCE] for any event with sequence ≤ 0).
+     */
+    fun seedSeenEventId(eventId: String) {
+        seenEventIds.add(eventId)
+    }
+
     private fun ingest(envelope: RelayEnvelope, fromLocal: Boolean): RelayDecision {
         val event = envelope.event
         if (event.eventId.isBlank() || event.originId.isBlank() || event.occurredAtMs <= 0 || event.ttlSeconds < 0) {

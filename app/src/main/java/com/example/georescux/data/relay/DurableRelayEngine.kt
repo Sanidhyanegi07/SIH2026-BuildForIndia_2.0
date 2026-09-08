@@ -20,17 +20,13 @@ class DurableRelayEngine(
     }
 
     private fun restoreState() {
-        val storedSeenIds = store.loadAllSeenEventIds()
-        storedSeenIds.forEach { eventId ->
-            // Pre-seed seen events into RelayEngine by ingesting dummy historical records
-            val dummyEvent = IncidentEvent(
-                eventId = eventId,
-                originId = "RESTORED_DURABLE_SEED",
-                type = com.example.georescux.domain.incident.IncidentType.ALERT,
-                occurredAtMs = System.currentTimeMillis(),
-                ttlSeconds = 3600,
-            )
-            delegate.onEventReceived(RelayEnvelope(dummyEvent, dummyEvent.canonicalString()))
+        // FIX Bug 5: call seedSeenEventId() directly instead of routing through onEventReceived
+        // with a dummy IncidentEvent.  The old approach ran the ReplayGuard sequence check,
+        // which returned STALE_SEQUENCE for any restored event after the first (they all had
+        // sequence=0), so those event IDs were never added to seenEventIds and could be
+        // re-broadcast to peers after every process restart.
+        store.loadAllSeenEventIds().forEach { eventId ->
+            delegate.seedSeenEventId(eventId)
         }
     }
 
