@@ -1,0 +1,24 @@
+{
+  "regionId": "uttarakhand",
+  "regionVersion": 1,
+  "bbox": {"minLat": 28.7, "maxLat": 31.5, "minLng": 77.5, "maxLng": 81.1},
+  "inputs": [
+    {"file": "uttarakhand-latest.osm.pbf", "bytes": 33279165, "sha256": "85f3d87ce808465811af0b69bf6a56b37979d9facc1f0bfd761fae9595daf4fb"},
+    {"file": "himachal_pradesh-latest.osm.pbf", "bytes": 23531962, "sha256": "872ab2813665ab3442426ddcaf66faaa53ee9864c660b47bfcbe1902fb5b7b11"},
+    {"file": "uttar_pradesh-latest.osm.pbf", "bytes": 199231906, "sha256": "cf5a0759df391c82a441094af1a6b11449757cdb8156ba5aad4de5d69ea05c27"},
+    {"file": "haryana-latest.osm.pbf", "bytes": 52129382, "sha256": "8d0236f90d64c36e8fe46c5b4fb9310178b087c8664f45b75a394c0a039aabf9"}
+  ],
+  "osmNodesScanned": 87833126,
+  "osmWaysScanned": 9223646,
+  "graphNodes": 117972,
+  "graphEdges": 138164,
+  "graphLengthKm": 60272.3,
+  "connectedComponents": 2929,
+  "largestComponentNodes": 108975,
+  "largestIslandSizes": [108975, 393, 84, 57, 52, 45, 44, 41, 40, 34],
+  "matchedDistrictHq": 24/26,
+  "matchedHavenTowns": ["almora","bageshwar","champawat","dehradun","dharchula","gopeshwar","haldwani","haridwar","joshimath","karnaprayag","kashipur","kotdwar","munsyari","mussoorie","nainital","new tehri","pauri","pithoragarh","ranikhet","rishikesh","rudraprayag","rudrapur","tanakpur","uttarkashi"],
+  "missingHavenTowns": ["Munsiari","Tehri"],
+  "highwayWayCounts": {"Ganga Expressway, UP": 2,"bridleway": 204,"bus_stop": 4,"busway": 90,"construction": 3402,"corridor": 354,"cycleway": 416,"elevator": 4,"footway": 22460,"junction": 2,"living_street": 18296,"motorway": 17954,"motorway_link": 3680,"path": 35508,"pedestrian": 1360,"platform": 2,"primary": 18008,"primary_link": 2056,"proposed": 92,"raceway": 40,"residential": 2550298,"rest_area": 46,"road": 690,"secondary": 26016,"secondary_link": 2912,"service": 422466,"services": 80,"steps": 3746,"tertiary": 129700,"tertiary_link": 3506,"track": 348498,"trunk": 49002,"trunk_link": 9720,"unclassified": 404102},
+  "output": "C:\Users\sanid\Documents\GitHub\SIH2026-BuildForIndia_2.0\tools\uttarakhand\..\..\app\src\main\assets\route_graph_uttarakhand"
+}

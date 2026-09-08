@@ -24,6 +24,14 @@ android {
             isMinifyEnabled = false
         }
     }
+    packaging {
+        // The datastore JNI library ships 4KB-aligned; compress it so the
+        // APK installs on 16KB-page devices (e.g. the 16 KB page-size
+        // emulator images and upcoming 16 KB-page phones).
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -55,4 +63,11 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+}
+
+// Stage 7B-4: the bundled regional graph asset is megabyte-scale; the JSON
+// parse + graph build in UttarakhandRegionGraphTest needs more headroom
+// than the default unit-test worker heap.
+tasks.withType<Test>().configureEach {
+    maxHeapSize = "3g"
 }

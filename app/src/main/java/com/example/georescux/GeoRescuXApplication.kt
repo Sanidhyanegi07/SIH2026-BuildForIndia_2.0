@@ -12,6 +12,7 @@ import com.example.georescux.data.routing.RouteGraphLocalStore
 import com.example.georescux.data.routing.RouteRepositoryImpl
 import com.example.georescux.data.routing.SharedPreferencesRouteGraphStore
 import com.example.georescux.data.maps.MapRegionCatalog
+import com.example.georescux.data.maps.MapRegionSelectionStore
 import com.example.georescux.data.maps.RegionGraphLoader
 import com.example.georescux.data.sos.LocalSosStore
 import com.example.georescux.data.sos.SharedPreferencesSosStore
@@ -88,14 +89,41 @@ class AppContainer(context: Context) {
     )
     val sosBackup: SosBackup = syncingSosRepository
 
-    // Offline evacuation routing (Stage 7B-2: region-scoped storage; the
-    // active region is the bundled real OSM-derived sample region).
+    // Offline evacuation routing (Stage 7B-4: region-scoped storage with a
+    // user-selected active region — the bundled sample region plus the
+    // bundled real OSM-derived Uttarakhand region). Switching regions
+    // swaps the repository (and its seeded graph) without touching any
+    // other region's stored graph.
     private val routeGraphStore: RouteGraphLocalStore = SharedPreferencesRouteGraphStore(appContext)
-    val routeRepository: RouteRepository = RouteRepositoryImpl(
-        store = routeGraphStore,
-        activeRegionId = MapRegionCatalog.sampleRegion.id,
-    ) {
-        RegionGraphLoader.fromAsset(appContext.assets, MapRegionCatalog.sampleRegion.graphAssetPath)
+    private val mapRegionSelection = MapRegionSelectionStore(appContext)
+
+    @Volatile
+    var activeRegionId: String = mapRegionSelection.load() ?: MapRegionCatalog.sampleRegion.id
+        private set
+
+    private val routeRepositories = mutableMapOf<String, RouteRepository>()
+
+    fun routeRepositoryFor(regionId: String): RouteRepository = synchronized(routeRepositories) {
+        routeRepositories.getOrPut(regionId) {
+            val region = MapRegionCatalog.byId(regionId)
+                ?: throw IllegalArgumentException("Unknown map region: $regionId")
+            RouteRepositoryImpl(
+                store = routeGraphStore,
+                activeRegionId = regionId,
+                seedProvider = { RegionGraphLoader.fromAsset(appContext.assets, region.graphAssetPath) },
+                bundledSeedVersion = region.version,
+            )
+        }
+    }
+
+    val routeRepository: RouteRepository get() = routeRepositoryFor(activeRegionId)
+
+    /** Switches the active region (manual selection or GPS-based). */
+    fun setActiveRegion(regionId: String): Boolean {
+        MapRegionCatalog.byId(regionId) ?: return false
+        mapRegionSelection.save(regionId)
+        activeRegionId = regionId
+        return true
     }
 
     // BLE Mesh Relay & Durable Seen-Event Persistence

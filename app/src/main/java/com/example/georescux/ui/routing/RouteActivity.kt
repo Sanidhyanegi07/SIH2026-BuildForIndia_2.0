@@ -53,6 +53,11 @@ import java.util.Locale
  * - Auto-Fit: camera automatically frames the computed shortest path.
  * - GPS start: after the location permission is granted, the graph node
  *   nearest to the current location becomes the default start.
+ * - Region selection (Stage 7B-4): the active region is the persisted
+ *   selection (sample region by default). When a GPS fix falls inside
+ *   another bundled region (e.g. Uttarakhand), the region is switched and
+ *   the screen rebinds to that region's graph. The graph itself loads off
+ *   the main thread; overlays render when it arrives.
  * - Routing: hazard-aware A* via the RouteRepository (Stage 7A engine).
  * - Attribution: Map data © OpenStreetMap contributors.
  */
@@ -65,6 +70,8 @@ class RouteActivity : AppCompatActivity() {
     private var startMarker: Marker? = null
     private var destinationMarker: Marker? = null
     private var locationStarted = false
+    private var staticOverlaysRendered = false
+    private var activeRegion = MapRegionCatalog.sampleRegion
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -85,29 +92,28 @@ class RouteActivity : AppCompatActivity() {
         // Initialize Mapsforge graphic factory
         AndroidGraphicFactory.createInstance(this.application)
 
-        val container = (application as GeoRescuXApplication).appContainer
-        viewModel = ViewModelProvider(this, RouteViewModel.Factory(container.routeRepository))
-            .get(RouteViewModel::class.java)
+        val container = container()
+        activeRegion = MapRegionCatalog.byId(container.activeRegionId) ?: MapRegionCatalog.sampleRegion
+        bindViewModel()
 
-        graph = viewModel.uiState.value.graph
-        val region = MapRegionCatalog.sampleRegion
-
-        TileArchiveInstaller.ensureExtracted(this, region)
+        if (activeRegion.tileAssetPath.isNotBlank()) {
+            TileArchiveInstaller.ensureExtracted(this, activeRegion)
+        }
 
         val mapView = findViewById<MapView>(R.id.mapView)
         mapView.setUseDataConnection(false)
-        
+
         // Find Mapsforge offline vector map file or fallback to SQLite archive
-        val expectedArchive = File(osmdroidBase, "${region.id}-tiles.sqlite")
-        val expectedZip = File(osmdroidBase, "${region.id}-tiles.zip")
+        val expectedArchive = File(osmdroidBase, "${activeRegion.id}-tiles.sqlite")
+        val expectedZip = File(osmdroidBase, "${activeRegion.id}-tiles.zip")
         val mapCandidates = listOf(
-            File(File(filesDir, "output/${region.id}"), "state.map"),
-            File(File(filesDir, "maps/${region.id}"), "state.map"),
-            File(File(getExternalFilesDir(null), "output/${region.id}"), "state.map"),
-            File(File(File(System.getProperty("user.dir") ?: "").parentFile ?: filesDir, "output/${region.id}"), "state.map")
+            File(File(filesDir, "output/${activeRegion.id}"), "state.map"),
+            File(File(filesDir, "maps/${activeRegion.id}"), "state.map"),
+            File(File(getExternalFilesDir(null), "output/${activeRegion.id}"), "state.map"),
+            File(File(File(System.getProperty("user.dir") ?: "").parentFile ?: filesDir, "output/${activeRegion.id}"), "state.map")
         )
         val mapFile = mapCandidates.firstOrNull { it.exists() }
-        
+
         if (mapFile != null) {
             val forge = MapsForgeTileSource.createFromFiles(arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER")
             val provider = MapsForgeTileProvider(
@@ -117,30 +123,26 @@ class RouteActivity : AppCompatActivity() {
             mapView.tileProvider = provider
             findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
         } else {
-            val tileSourceName = "${region.id}-offline"
+            val tileSourceName = "${activeRegion.id}-offline"
             mapView.setTileSource(
                 XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
             )
             val hasOfflineData = expectedArchive.exists() || expectedZip.exists()
             findViewById<TextView>(R.id.textViewNoMapData).visibility = if (hasOfflineData) View.GONE else View.VISIBLE
         }
-        mapView.controller.setZoom(15.5)
+        // State-scale regions frame the whole area; the small sample region
+        // keeps its street-level default.
+        val regionLatSpan = activeRegion.maxLatitude - activeRegion.minLatitude
+        mapView.controller.setZoom(if (regionLatSpan > 1.0) 7.5 else 15.5)
         mapView.controller.setCenter(
             GeoPoint(
-                (region.minLatitude + region.maxLatitude) / 2,
-                (region.minLongitude + region.maxLongitude) / 2
+                (activeRegion.minLatitude + activeRegion.maxLatitude) / 2,
+                (activeRegion.minLongitude + activeRegion.maxLongitude) / 2
             )
         )
 
         val startEditText = findViewById<EditText>(R.id.editTextStartNode)
         val destinationEditText = findViewById<EditText>(R.id.editTextDestinationNode)
-        
-        graph?.let {
-            renderStaticMapOverlays(it, mapView)
-            it.nodes.firstOrNull { node -> node.isSafeHaven }?.id?.let { id ->
-                destinationEditText.setText(id)
-            }
-        }
 
         // Map touch / tap listener to select nodes directly on the map
         val mapEventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
@@ -218,6 +220,21 @@ class RouteActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Binds (or rebinds after a region switch) to the ViewModel of the
+     * active region. The key includes the region id so a region switch
+     * constructs a fresh ViewModel over the new region's repository —
+     * a plain get() would survive recreation with the previous region.
+     */
+    private fun bindViewModel() {
+        val container = container()
+        val key = "route_vm_${container.activeRegionId}"
+        viewModel = ViewModelProvider(
+            this,
+            RouteViewModel.Factory(container.routeRepository)
+        )[key, RouteViewModel::class.java]
+    }
+
     private fun renderStaticMapOverlays(graph: RouteGraph, mapView: MapView) {
         // Render Safe Havens
         graph.nodes.filter { it.isSafeHaven }.forEach { safeHaven ->
@@ -248,12 +265,12 @@ class RouteActivity : AppCompatActivity() {
     private suspend fun resolveNodeId(input: String): String? = withContext(Dispatchers.IO) {
         if (input.isBlank()) return@withContext null
         val nodes = graph?.nodes ?: return@withContext null
-        
+
         if (nodes.any { it.id == input }) return@withContext input
-        
+
         var targetLat: Double? = null
         var targetLng: Double? = null
-        
+
         val decimalRegex = Regex("""(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)""")
         val match = decimalRegex.find(input)
         if (match != null) {
@@ -271,10 +288,10 @@ class RouteActivity : AppCompatActivity() {
                 e.printStackTrace()
             }
         }
-        
+
         if (targetLat == null || targetLng == null) return@withContext null
-        
-        nodes.minByOrNull { 
+
+        nodes.minByOrNull {
             val dLat = Math.toRadians(it.latitude - targetLat)
             val dLng = Math.toRadians(it.longitude - targetLng)
             dLat * dLat + dLng * dLng
@@ -286,6 +303,19 @@ class RouteActivity : AppCompatActivity() {
         locationStarted = true
         container().locationRepository.startAcquisition { fix ->
             runOnUiThread {
+                // Stage 7B-4 region selection: a fix inside another bundled
+                // region switches the active region and rebinds the screen.
+                val fixRegion = MapRegionCatalog.regionForLocation(fix.latitude, fix.longitude)
+                if (fixRegion != null && fixRegion.id != container().activeRegionId) {
+                    container().setActiveRegion(fixRegion.id)
+                    Toast.makeText(
+                        this,
+                        "Offline map region switched to ${fixRegion.displayName}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    recreate()
+                    return@runOnUiThread
+                }
                 viewModel.setStartFromLocation(fix.latitude, fix.longitude)
                 container().locationRepository.stopAcquisition()
             }
@@ -307,8 +337,29 @@ class RouteActivity : AppCompatActivity() {
 
         stepsContainer.removeAllViews()
 
+        // The regional graph arrives asynchronously; render its static
+        // overlays once and keep the field used by map taps / geocoding.
+        ui.graph?.let { loadedGraph ->
+            graph = loadedGraph
+            if (!staticOverlaysRendered) {
+                staticOverlaysRendered = true
+                renderStaticMapOverlays(loadedGraph, mapView)
+                loadedGraph.nodes.firstOrNull { it.isSafeHaven }?.id?.let { id ->
+                    if (destinationEditText.text.isBlank()) destinationEditText.setText(id)
+                }
+            }
+        }
+
         syncStartEditText(startEditText, ui.startNodeId)
         syncDestinationEditText(destinationEditText, ui.destinationNodeId)
+
+        if (ui.graphLoading) {
+            noRouteText.visibility = View.VISIBLE
+            noRouteText.text = "Loading offline map data…"
+            summaryText.visibility = View.GONE
+            warningsText.visibility = View.GONE
+            return
+        }
 
         val route = ui.route
         if (route == null) {

@@ -60,8 +60,20 @@ object MapRegionCatalog {
         tileAssetPath = "maps/sample-region/tiles.sqlite",
     )
 
-    val bundledRegions: List<MapRegion> = listOf(sampleRegion)
+    val bundledRegions: List<MapRegion> = listOf(sampleRegion, uttarakhand)
     val availableRegions: List<MapRegion> = listOf(sampleRegion, uttarakhand, himachalPradesh, haryana, uttarPradesh)
 
     fun byId(id: String): MapRegion? = bundledRegions.firstOrNull { it.id == id } ?: availableRegions.firstOrNull { it.id == id }
+
+    /**
+     * The bundled region containing the given position, or null when the
+     * position lies outside every bundled region. Used to auto-select the
+     * regional graph from a location fix; manual selection always remains
+     * possible via [byId].
+     */
+    fun regionForLocation(latitude: Double, longitude: Double): MapRegion? =
+        bundledRegions.firstOrNull { region ->
+            latitude in region.minLatitude..region.maxLatitude &&
+                longitude in region.minLongitude..region.maxLongitude
+        }
 }

@@ -25,11 +25,14 @@ class RegionalMapIngestor(
             "uttar_pradesh" to "Uttar Pradesh"
         )
         
-        // Approximate bounding boxes for boundary geojson generation
+        // Approximate bounding boxes for boundary geojson generation.
+        // Uttarakhand's box mirrors MapRegionCatalog.uttarakhand exactly —
+        // the region definition must agree across catalog, ingestor and
+        // graph-building tool (tools/uttarakhand/BuildRegionGraph.java).
         val REGION_BOUNDING_BOXES = mapOf(
             "uttarakhand" to listOf(
-                listOf(77.5, 28.7), listOf(81.0, 28.7),
-                listOf(81.0, 31.4), listOf(77.5, 31.4), listOf(77.5, 28.7)
+                listOf(77.5, 28.7), listOf(81.1, 28.7),
+                listOf(81.1, 31.5), listOf(77.5, 31.5), listOf(77.5, 28.7)
             ),
             "himachal_pradesh" to listOf(
                 listOf(75.5, 30.3), listOf(79.0, 30.3),
