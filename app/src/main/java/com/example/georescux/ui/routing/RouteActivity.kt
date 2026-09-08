@@ -7,7 +7,7 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.Spinner
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,8 +25,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import kotlinx.coroutines.Dispatchers
 import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
@@ -85,10 +88,8 @@ class RouteActivity : AppCompatActivity() {
         TileArchiveInstaller.ensureExtracted(this, region)
 
         val mapView = findViewById<MapView>(R.id.mapView)
-        mapView.setTileSource(
-            XYTileSource("sample-region-offline", 13, 17, 256, ".png", emptyArray())
-        )
-        mapView.setUseDataConnection(false)
+        mapView.setTileSource(TileSourceFactory.MAPNIK)
+        mapView.setUseDataConnection(true)
         mapView.controller.setZoom(15.5)
         mapView.controller.setCenter(
             GeoPoint(
@@ -99,9 +100,15 @@ class RouteActivity : AppCompatActivity() {
 
         val startSpinner = findViewById<Spinner>(R.id.spinnerStartNode)
         val destinationSpinner = findViewById<Spinner>(R.id.spinnerDestinationNode)
+        val startEditText = findViewById<EditText>(R.id.editTextStartNode)
+        val destinationEditText = findViewById<EditText>(R.id.editTextDestinationNode)
+        
         graph?.let {
             setupSpinners(it, startSpinner, destinationSpinner)
             renderStaticMapOverlays(it, mapView)
+            it.nodes.firstOrNull { node -> node.isSafeHaven }?.id?.let { id ->
+                destinationEditText.setText(id)
+            }
         }
 
         // Map touch / tap listener to select nodes directly on the map
@@ -145,17 +152,21 @@ class RouteActivity : AppCompatActivity() {
         mapView.overlays.add(0, mapEventsOverlay)
 
         findViewById<Button>(R.id.buttonFindRoute).setOnClickListener {
-            viewModel.findRouteFromScreen(
-                selectedStartNodeId = selectedNodeId(startSpinner),
-                destinationNodeId = selectedNodeId(destinationSpinner),
-            )
+            uiScope.launch {
+                viewModel.findRouteFromScreen(
+                    selectedStartNodeId = resolveNodeId(startEditText.text.toString()),
+                    destinationNodeId = resolveNodeId(destinationEditText.text.toString()),
+                )
+            }
         }
 
         findViewById<Button>(R.id.buttonReroute).setOnClickListener {
-            viewModel.reroute(
-                fallbackStartNodeId = selectedNodeId(startSpinner),
-                fallbackDestinationNodeId = selectedNodeId(destinationSpinner),
-            )
+            uiScope.launch {
+                viewModel.reroute(
+                    fallbackStartNodeId = resolveNodeId(startEditText.text.toString()),
+                    fallbackDestinationNodeId = resolveNodeId(destinationEditText.text.toString()),
+                )
+            }
         }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -169,7 +180,7 @@ class RouteActivity : AppCompatActivity() {
         }
 
         uiScope.launch {
-            viewModel.uiState.collect { render(it, startSpinner, destinationSpinner) }
+            viewModel.uiState.collect { render(it, startEditText, destinationEditText) }
         }
     }
 
@@ -226,6 +237,43 @@ class RouteActivity : AppCompatActivity() {
         return nodes.getOrNull(spinner.selectedItemPosition)?.id
     }
 
+    private suspend fun resolveNodeId(input: String): String? = withContext(Dispatchers.IO) {
+        if (input.isBlank()) return@withContext null
+        val nodes = graph?.nodes ?: return@withContext null
+        
+        if (nodes.any { it.id == input }) return@withContext input
+        
+        var targetLat: Double? = null
+        var targetLng: Double? = null
+        
+        val decimalRegex = Regex("""(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)""")
+        val match = decimalRegex.find(input)
+        if (match != null) {
+            targetLat = match.groupValues[1].toDoubleOrNull()
+            targetLng = match.groupValues[2].toDoubleOrNull()
+        } else {
+            try {
+                val geocoder = android.location.Geocoder(this@RouteActivity, Locale.getDefault())
+                val results = geocoder.getFromLocationName(input, 1)
+                if (!results.isNullOrEmpty()) {
+                    targetLat = results[0].latitude
+                    targetLng = results[0].longitude
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        
+        if (targetLat == null || targetLng == null) return@withContext null
+        
+        nodes.minByOrNull { 
+            val dLat = Math.toRadians(it.latitude - targetLat)
+            val dLng = Math.toRadians(it.longitude - targetLng)
+            dLat * dLat + dLng * dLng
+        }?.id
+    }
+    }
+
     private fun startLocationAcquisition() {
         if (locationStarted) return
         locationStarted = true
@@ -241,8 +289,8 @@ class RouteActivity : AppCompatActivity() {
 
     private fun render(
         ui: RouteUiState,
-        startSpinner: Spinner,
-        destinationSpinner: Spinner,
+        startEditText: EditText,
+        destinationEditText: EditText,
     ) {
         val mapView = findViewById<MapView>(R.id.mapView)
         val stepsContainer = findViewById<LinearLayout>(R.id.routeStepsContainer)
@@ -251,6 +299,11 @@ class RouteActivity : AppCompatActivity() {
         val warningsText = findViewById<TextView>(R.id.textViewHazardWarnings)
 
         stepsContainer.removeAllViews()
+
+        // Selection sync FIRST: the GPS-selected start must be visible in
+        // the start spinner even before any route has been drawn.
+        syncStartEditText(startEditText, ui.startNodeId)
+        syncDestinationEditText(destinationEditText, ui.destinationNodeId)
 
         syncStartSpinner(startSpinner, ui.startNodeId)
         syncDestinationSpinner(destinationSpinner, ui.destinationNodeId)
@@ -355,18 +408,14 @@ class RouteActivity : AppCompatActivity() {
         mapView.invalidate()
     }
 
-    private fun syncStartSpinner(spinner: Spinner, startNodeId: String?) {
+    private fun syncStartEditText(editText: EditText, startNodeId: String?) {
         startNodeId ?: return
-        val nodes = graph?.nodes ?: return
-        val index = nodes.indexOfFirst { it.id == startNodeId }
-        if (index >= 0 && spinner.selectedItemPosition != index) spinner.setSelection(index)
+        if (editText.text.isBlank()) editText.setText(startNodeId)
     }
 
-    private fun syncDestinationSpinner(spinner: Spinner, destinationNodeId: String?) {
+    private fun syncDestinationEditText(editText: EditText, destinationNodeId: String?) {
         destinationNodeId ?: return
-        val nodes = graph?.nodes ?: return
-        val index = nodes.indexOfFirst { it.id == destinationNodeId }
-        if (index >= 0 && spinner.selectedItemPosition != index) spinner.setSelection(index)
+        if (editText.text.isBlank()) editText.setText(destinationNodeId)
     }
 
     override fun onDestroy() {
