@@ -1,22 +1,107 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+# ====================================================================
+# Built Application Files & Binaries
+# ====================================================================
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
 
-# Generated maps and external tool binaries
+# ====================================================================
+# Gradle Files & Build Outputs
+# ====================================================================
+.gradle/
+build/
+*/build/
+app/build/
+.gradletasknamecache
+
+# ====================================================================
+# Local Configuration & Secrets (Never commit SDK paths or API keys)
+# ====================================================================
+local.properties
+local.properties.*
+!local.properties.example
+secrets.properties
+google-services.json.local
+
+# Keystores & Signing
+*.jks
+*.keystore
+
+# ====================================================================
+# Android Studio / IntelliJ IDEA
+# ====================================================================
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetSelector.xml
+.idea/deviceManager.xml
+.idea/appInsightsSettings.xml
+.idea/shelf/
+.idea/usage.statistics.xml
+.idea/tasks.xml
+.idea/sonarlint/
+.navigation/
+captures/
+
+# ====================================================================
+# Kotlin & JVM Caches
+# ====================================================================
+.kotlin/
+*.hprof
+
+# ====================================================================
+# Native Build Folders
+# ====================================================================
+.externalNativeBuild
+.cxx/
+
+# ====================================================================
+# Debug Dumps & Bisection Artifacts
+# ====================================================================
+.bisect/
+*.trace
+
+# ====================================================================
+# Admin Tooling & Node.js (georescux-admin-provision)
+# ====================================================================
+node_modules/
+serviceAccountKey.json
+georescux-admin-provision/serviceAccountKey.json
+.env
+.env.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ====================================================================
+# Generated Maps & External Tool Binaries
+# ====================================================================
 *.map
 output/*/*.map
 tools/osmosis/
 tools/osmosis.zip
 tools/libs/
+
+# ====================================================================
+# Operating System & Editor Files
+# ====================================================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+*~
+*.swp
+.vscode/
+
+# ====================================================================
+# Log Files
+# ====================================================================
+*.log
+hs_err_pid*.log
+.attach_pid*
