@@ -127,6 +127,11 @@ class HomeActivity : AppCompatActivity() {
         findViewById<View>(R.id.tileBleDiagnostics).setOnClickListener {
             startActivity(Intent(this, com.example.georescux.ui.ble.BleDiagnosticsActivity::class.java))
         }
+
+        // Profile tile: photo, phone number and email (device-local).
+        findViewById<View>(R.id.tileProfile).setOnClickListener {
+            startActivity(Intent(this, com.example.georescux.ui.profile.ProfileActivity::class.java))
+        }
     }
 
     private fun setupSosButton() {

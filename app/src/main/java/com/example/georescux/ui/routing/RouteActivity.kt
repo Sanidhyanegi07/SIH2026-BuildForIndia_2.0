@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.os.Bundle
 import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -17,6 +19,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.maps.MapRegionCatalog
+import com.example.georescux.data.maps.PlaceEntry
+import com.example.georescux.data.maps.PlaceIndex
 import com.example.georescux.data.maps.TileArchiveInstaller
 import com.example.georescux.domain.routing.NearestNode
 import com.example.georescux.domain.routing.RouteGraph
@@ -72,6 +76,7 @@ class RouteActivity : AppCompatActivity() {
     private var locationStarted = false
     private var staticOverlaysRendered = false
     private var activeRegion = MapRegionCatalog.sampleRegion
+    private var places: List<PlaceEntry> = emptyList()
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -100,13 +105,36 @@ class RouteActivity : AppCompatActivity() {
             TileArchiveInstaller.ensureExtracted(this, activeRegion)
         }
 
+        findViewById<TextView>(R.id.textRegionSubtitle).text =
+            "Offline evacuation routing — ${activeRegion.displayName}"
+
+        // Offline place-name search: autocomplete + name resolution
+        // (places.json is produced by the region's build tool).
+        places = PlaceIndex.loadFromAsset(
+            assets, "maps/${activeRegion.id}-places.json"
+        )
+        val startField = findViewById<AutoCompleteTextView>(R.id.editTextStartNode)
+        val destinationField = findViewById<AutoCompleteTextView>(R.id.editTextDestinationNode)
+        if (places.isNotEmpty()) {
+            val nameAdapter = ArrayAdapter(
+                this, android.R.layout.simple_dropdown_item_1line,
+                places.map { it.name }.distinct()
+            )
+            startField.setAdapter(nameAdapter)
+            destinationField.setAdapter(nameAdapter)
+        }
+
         val mapView = findViewById<MapView>(R.id.mapView)
         mapView.setUseDataConnection(false)
 
-        // Find Mapsforge offline vector map file or fallback to SQLite archive
+        // Find Mapsforge offline vector map file or fallback to SQLite archive.
+        // Candidates: the TileArchiveInstaller-extracted bundled vector map,
+        // then the regional-map-package locations (output/{regionId}/state.map).
         val expectedArchive = File(osmdroidBase, "${activeRegion.id}-tiles.sqlite")
         val expectedZip = File(osmdroidBase, "${activeRegion.id}-tiles.zip")
+        val expectedMap = File(osmdroidBase, "${activeRegion.id}-tiles.map")
         val mapCandidates = listOf(
+            expectedMap,
             File(File(filesDir, "output/${activeRegion.id}"), "state.map"),
             File(File(filesDir, "maps/${activeRegion.id}"), "state.map"),
             File(File(getExternalFilesDir(null), "output/${activeRegion.id}"), "state.map"),
@@ -115,7 +143,7 @@ class RouteActivity : AppCompatActivity() {
         val mapFile = mapCandidates.firstOrNull { it.exists() }
 
         if (mapFile != null) {
-            val forge = MapsForgeTileSource.createFromFiles(arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER")
+            val forge = MapsForgeTileSource.createFromFiles(arrayOf(mapFile), InternalRenderTheme.DEFAULT, "RenderTheme.DEFAULT")
             val provider = MapsForgeTileProvider(
                 SimpleRegisterReceiver(this),
                 forge, null
@@ -236,12 +264,15 @@ class RouteActivity : AppCompatActivity() {
     }
 
     private fun renderStaticMapOverlays(graph: RouteGraph, mapView: MapView) {
+        val havenIcon = rememberHavenIcon()
         // Render Safe Havens
         graph.nodes.filter { it.isSafeHaven }.forEach { safeHaven ->
             val marker = Marker(mapView)
             marker.position = GeoPoint(safeHaven.latitude, safeHaven.longitude)
             marker.title = "🏥 Safe Haven: ${safeHaven.id}"
             marker.snippet = "Evacuation Safe Zone"
+            marker.icon = havenIcon
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             mapView.overlays.add(marker)
         }
 
@@ -261,12 +292,36 @@ class RouteActivity : AppCompatActivity() {
         }
     }
 
+    /** Cached green cross marker so all havens share one bitmap. */
+    private var havenIconCache: android.graphics.drawable.Drawable? = null
+
+    private fun rememberHavenIcon(): android.graphics.drawable.Drawable {
+        havenIconCache?.let { return it }
+        val size = 44
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFF2E7D32.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
+        paint.color = android.graphics.Color.WHITE
+        paint.strokeWidth = 5f
+        canvas.drawLine(size / 2f, 12f, size / 2f, size - 12f, paint)
+        canvas.drawLine(12f, size / 2f, size - 12f, size / 2f, paint)
+        val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
+        havenIconCache = drawable
+        return drawable
+    }
+
     @Suppress("DEPRECATION")
     private suspend fun resolveNodeId(input: String): String? = withContext(Dispatchers.IO) {
         if (input.isBlank()) return@withContext null
         val nodes = graph?.nodes ?: return@withContext null
 
         if (nodes.any { it.id == input }) return@withContext input
+
+        // Offline place-name resolution (faster + offline vs the Geocoder).
+        PlaceIndex.find(places, input)?.let { return@withContext it.nodeId }
 
         var targetLat: Double? = null
         var targetLng: Double? = null

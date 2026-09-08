@@ -365,6 +365,7 @@ public class BuildRegionGraph {
             }
         }
         System.out.println("region facilities: " + regionFacilities.size());
+        regionFacilitiesCache = regionFacilities;
 
         buildGraph(regionWays, regionFacilities, outGraph, outDir, pbfPaths, elevation);
         System.out.println("done in " + (System.currentTimeMillis() - t0) / 1000.0 + " s");
@@ -461,6 +462,10 @@ public class BuildRegionGraph {
         // 6. Safe havens: snap real facilities to the nearest main-component node.
         Map<Integer, String[]> havenByNode = designateSafeHavens(
                 regionFacilities, idToInternal, internalOfOut, parent);
+
+        // 6b. Offline place search index: named OSM places + facilities,
+        // each snapped to its graph node (autocomplete for Start/Destination).
+        writePlaces(outDir, idToInternal, internalOfOut, havenByNode);
 
         // 7. graph.json (compact RegionGraphLoader format).
         StringBuilder json = new StringBuilder(1 << 26);
@@ -578,6 +583,95 @@ public class BuildRegionGraph {
         System.out.println("safe havens: " + havenByNode.size() + " designated ("
                 + verifiedCount + " verified, " + (havenByNode.size() - verifiedCount) + " provisional)");
         return havenByNode;
+    }
+
+    /**
+     * Writes places.json: named OSM places (city/town/village/hamlet) and
+     * tagged facilities, each snapped to the nearest kept graph node.
+     * The app's Safe Route screen autocompletes these names offline.
+     */
+    static void writePlaces(String outDir, Map<String, Integer> idToInternal,
+                            int[] internalOfOut, Map<Integer, String[]> havenByNode) throws Exception {
+        // Collect kept graph nodes with a 0.01-degree grid for fast nearest lookup.
+        int cell = 100; // 1/100 degree per cell
+        Map<Long, List<Integer>> grid = new HashMap<>();
+        Map<Integer, String> internalToId = new HashMap<>();
+        for (Map.Entry<String, Integer> e : idToInternal.entrySet()) {
+            int internal = e.getValue();
+            internalToId.put(internal, e.getKey());
+            long key = gridKey(nodeLat[internal], nodeLon[internal], cell);
+            grid.computeIfAbsent(key, k -> new ArrayList<>()).add(internal);
+        }
+
+        List<PlaceRecord> places = new ArrayList<>(placeRecords.values());
+        // Facilities are searchable too.
+        for (Facility f : regionFacilitiesCache) {
+            PlaceRecord r = new PlaceRecord();
+            r.name = f.name == null || f.name.isEmpty() ? kindLabel(f.kind) : f.name;
+            r.kind = f.kind;
+            r.lat = f.lat;
+            r.lon = f.lon;
+            places.add(r);
+        }
+        places.sort((a, b) -> foldName(a.name).compareTo(foldName(b.name)));
+
+        StringBuilder json = new StringBuilder(1 << 20);
+        json.append("{\"region\":\"").append(REGION_ID).append("\",\"places\":[");
+        boolean first = true;
+        int unsnapped = 0;
+        for (PlaceRecord p : places) {
+            int internal = nearestNode(p.lat, p.lon, grid, cell, internalToId);
+            if (internal < 0) { unsnapped++; continue; }
+            if (!first) json.append(',');
+            first = false;
+            boolean haven = havenByNode.containsKey(internal);
+            json.append("{\"name\":\"").append(jsonEscape(p.name))
+                    .append("\",\"kind\":\"").append(p.kind)
+                    .append("\",\"latitude\":").append(fmtCoord(p.lat))
+                    .append(",\"longitude\":").append(fmtCoord(p.lon))
+                    .append(",\"nodeId\":\"").append(internalToId.get(internal))
+                    .append("\",\"isSafeHaven\":").append(haven)
+                    .append('}');
+        }
+        json.append("]}");
+        Files.write(Paths.get(outDir, "places.json"), json.toString().getBytes("UTF-8"));
+        System.out.println("places index: " + (places.size() - unsnapped) + " snapped ("
+                + unsnapped + " dropped, no graph node within 5 km)");
+    }
+
+    static List<Facility> regionFacilitiesCache = new ArrayList<>();
+
+    static String kindLabel(String kind) {
+        switch (kind) {
+            case "hospital": return "Hospital";
+            case "police": return "Police Station";
+            case "fire_station": return "Fire Station";
+            default: return kind;
+        }
+    }
+
+    static long gridKey(double lat, double lng, int cell) {
+        long la = Math.round(lat * cell), lo = Math.round(lng * cell);
+        return (la + 32000) * 100000 + (lo + 32000);
+    }
+
+    /** Nearest kept node within ~0.05 degrees via 3x3 grid cells; -1 when none. */
+    static int nearestNode(double lat, double lng, Map<Long, List<Integer>> grid,
+                           int cell, Map<Integer, String> internalToId) {
+        long la = Math.round(lat * cell), lo = Math.round(lng * cell);
+        int best = -1;
+        double bestD = Double.MAX_VALUE;
+        for (long dLa = -3; dLa <= 3; dLa++) {
+            for (long dLo = -3; dLo <= 3; dLo++) {
+                List<Integer> bucket = grid.get((la + dLa + 32000) * 100000 + (lo + dLo + 32000));
+                if (bucket == null) continue;
+                for (int internal : bucket) {
+                    double d = haversine(lat, lng, nodeLat[internal], nodeLon[internal]);
+                    if (d < bestD) { bestD = d; best = internal; }
+                }
+            }
+        }
+        return bestD <= 5000.0 ? best : -1;
     }
 
     static void writeSafeHavens(String outDir, Map<Integer, String[]> havenByNode) throws Exception {
@@ -1004,10 +1098,32 @@ public class BuildRegionGraph {
 
     static boolean pendingDebugTowns;
 
+    /** Named places for the app's offline start/destination search. */
+    static final class PlaceRecord {
+        String name;
+        String kind;   // city | town | village | hamlet | hospital | police | fire_station
+        double lat, lon;
+        boolean safeHaven; // set after haven designation
+    }
+
+    static final java.util.LinkedHashMap<Long, PlaceRecord> placeRecords = new java.util.LinkedHashMap<>();
+
     static void handleTaggedNode(long id, double latDeg, double lonDeg,
                                  String name, String amenity, String place) {
         if (pendingDebugTowns && place != null && name != null && inBbox(latDeg, lonDeg)) {
             System.out.println("[place] " + place + " \"" + name + "\" @ " + latDeg + "," + lonDeg + " id=" + id);
+        }
+        if (name != null && !name.isEmpty() && place != null && inBbox(latDeg, lonDeg)
+                && (place.equals("city") || place.equals("town") || place.equals("village") || place.equals("hamlet"))) {
+            PlaceRecord r = placeRecords.get(id);
+            if (r == null) {
+                r = new PlaceRecord();
+                r.name = name;
+                r.kind = place;
+                r.lat = latDeg;
+                r.lon = lonDeg;
+                placeRecords.put(id, r);
+            }
         }
         if (amenity != null && (amenity.equals("hospital") || amenity.equals("police") || amenity.equals("fire_station"))) {
             Facility f = new Facility();

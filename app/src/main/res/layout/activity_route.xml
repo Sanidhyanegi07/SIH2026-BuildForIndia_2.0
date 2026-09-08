@@ -24,6 +24,7 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/textRegionSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
@@ -91,14 +92,15 @@
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
-                <EditText
+                <AutoCompleteTextView
                     android:id="@+id/editTextStartNode"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="14dp"
                     android:background="@drawable/bg_input_field"
-                    android:hint="Type coordinates or place name"
+                    android:hint="Place name, coordinates or node id"
                     android:inputType="text"
+                    android:completionThreshold="1"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_subtle"
                     android:textSize="14sp" />
@@ -112,14 +114,15 @@
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
-                <EditText
+                <AutoCompleteTextView
                     android:id="@+id/editTextDestinationNode"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:background="@drawable/bg_input_field"
-                    android:hint="Type coordinates or place name"
+                    android:hint="Place name, coordinates or node id"
                     android:inputType="text"
+                    android:completionThreshold="1"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_subtle"
                     android:textSize="14sp" />

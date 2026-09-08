@@ -49,6 +49,7 @@ xmlns:tools="http://schemas.android.com/tools">
     <activity android:name=".ui.alerts.AlertsActivity" android:exported="false" />
     <activity android:name=".ui.routing.RouteActivity" android:exported="false" />
     <activity android:name=".ui.ble.BleDiagnosticsActivity" android:exported="false" />
+    <activity android:name=".ui.profile.ProfileActivity" android:exported="false" />
     <activity android:name=".ui.admin.AdminDashboardActivity" android:exported="false" />
     <activity
         android:name=".ui.sos.SosActivity"
