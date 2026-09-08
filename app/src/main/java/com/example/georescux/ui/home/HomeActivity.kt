@@ -199,12 +199,16 @@ class HomeActivity : AppCompatActivity() {
 
     private fun checkBlePermissionsAndState() {
         val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(
+            val list = mutableListOf(
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.BLUETOOTH_ADVERTISE,
                 Manifest.permission.ACCESS_FINE_LOCATION
             )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                list.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+            }
+            list.toTypedArray()
         } else {
             arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
