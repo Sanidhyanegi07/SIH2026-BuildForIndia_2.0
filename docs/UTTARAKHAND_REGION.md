@@ -219,11 +219,10 @@ the natural follow-up.
 * Islands: 2,929 small disconnected components (border-clipped tracks,
   tagging artifacts) remain in the data and are reported — the router
   honestly reports "no route" for them.
-* No offline *rendering* tiles for Uttarakhand yet (`tileAssetPath` is
-  empty) — the routing graph works fully offline, but the basemap on the
-  Route screen will show the "no map data" hint unless a Mapsforge
-  `state.map` package (the separate `output/{regionId}` ingestion pipeline)
-  is installed.
+* ~~No offline *rendering* tiles for Uttarakhand~~ — resolved: a bundled
+  Mapsforge vector basemap (`maps/uttarakhand-state.map`, ~26 MB, generated
+  via Osmosis + mapsforge-map-writer, see `tools/uttarakhand/README.md`)
+  renders offline on the Route screen; safe havens use a dedicated marker.
 * Ferries (`route=ferry`) are not modeled (no highway tag).
 
 ## 10. Regenerating / extending

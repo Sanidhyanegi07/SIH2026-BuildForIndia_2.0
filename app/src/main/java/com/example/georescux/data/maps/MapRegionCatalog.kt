@@ -15,7 +15,7 @@ object MapRegionCatalog {
         minLongitude = 77.5, maxLongitude = 81.1,
         version = 1,
         graphAssetPath = "route_graph_uttarakhand",
-        tileAssetPath = ""
+        tileAssetPath = "maps/uttarakhand-state.map"
     )
 
     val himachalPradesh = MapRegion(

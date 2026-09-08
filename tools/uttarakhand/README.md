@@ -101,6 +101,25 @@ identical graph. `--debug-towns` (any position) additionally prints every
 `place=city|town` node found in pass 1 — useful when auditing the
 safe-haven town matching.
 
+### Offline basemap (state.map)
+
+The routing graph is separate from the visual basemap. The bundled vector
+basemap `app/src/main/assets/maps/uttarakhand-state.map` (Mapsforge format,
+~26 MB) is generated with Osmosis + the mapsforge map-writer plugin:
+
+```bash
+# One-time: osmosis 0.49.2 from GitHub releases into tools/osmosis/,
+# mapsforge-map-writer 0.20.0.jar from Maven Central into tools/osmosis/osmosis-0.49.2/lib/plugin/
+cd tools/osmosis
+JAVA_HOME=<jdk17+> ./osmosis-0.49.2/bin/osmosis.bat \
+  --read-pbf file=../../source/uttarakhand-latest.osm.pbf \
+  --mapfile-writer file=../uttarakhand/output/state.map \
+  bbox=28.7,77.5,31.5,81.1 type=hd
+# then copy output/state.map to app/src/main/assets/maps/uttarakhand-state.map
+```
+
+RouteActivity renders it via osmdroid's MapsForgeTileProvider (no network).
+
 **When you regenerate, bump `REGION_VERSION`** in `BuildRegionGraph.java`
 *and* `MapRegionCatalog.uttarakhand.version` together — the app upgrades a
 stored graph only when the bundled seed's version is newer than the stored

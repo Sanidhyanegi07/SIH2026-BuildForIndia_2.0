@@ -100,13 +100,20 @@ class RouteActivity : AppCompatActivity() {
             TileArchiveInstaller.ensureExtracted(this, activeRegion)
         }
 
+        findViewById<TextView>(R.id.textRegionSubtitle).text =
+            "Offline evacuation routing — ${activeRegion.displayName}"
+
         val mapView = findViewById<MapView>(R.id.mapView)
         mapView.setUseDataConnection(false)
 
-        // Find Mapsforge offline vector map file or fallback to SQLite archive
+        // Find Mapsforge offline vector map file or fallback to SQLite archive.
+        // Candidates: the TileArchiveInstaller-extracted bundled vector map,
+        // then the regional-map-package locations (output/{regionId}/state.map).
         val expectedArchive = File(osmdroidBase, "${activeRegion.id}-tiles.sqlite")
         val expectedZip = File(osmdroidBase, "${activeRegion.id}-tiles.zip")
+        val expectedMap = File(osmdroidBase, "${activeRegion.id}-tiles.map")
         val mapCandidates = listOf(
+            expectedMap,
             File(File(filesDir, "output/${activeRegion.id}"), "state.map"),
             File(File(filesDir, "maps/${activeRegion.id}"), "state.map"),
             File(File(getExternalFilesDir(null), "output/${activeRegion.id}"), "state.map"),
@@ -236,12 +243,15 @@ class RouteActivity : AppCompatActivity() {
     }
 
     private fun renderStaticMapOverlays(graph: RouteGraph, mapView: MapView) {
+        val havenIcon = rememberHavenIcon()
         // Render Safe Havens
         graph.nodes.filter { it.isSafeHaven }.forEach { safeHaven ->
             val marker = Marker(mapView)
             marker.position = GeoPoint(safeHaven.latitude, safeHaven.longitude)
             marker.title = "🏥 Safe Haven: ${safeHaven.id}"
             marker.snippet = "Evacuation Safe Zone"
+            marker.icon = havenIcon
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             mapView.overlays.add(marker)
         }
 
@@ -259,6 +269,27 @@ class RouteActivity : AppCompatActivity() {
                 mapView.overlays.add(hazardMarker)
             }
         }
+    }
+
+    /** Cached green cross marker so all havens share one bitmap. */
+    private var havenIconCache: android.graphics.drawable.Drawable? = null
+
+    private fun rememberHavenIcon(): android.graphics.drawable.Drawable {
+        havenIconCache?.let { return it }
+        val size = 44
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFF2E7D32.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
+        paint.color = android.graphics.Color.WHITE
+        paint.strokeWidth = 5f
+        canvas.drawLine(size / 2f, 12f, size / 2f, size - 12f, paint)
+        canvas.drawLine(12f, size / 2f, size - 12f, size / 2f, paint)
+        val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
+        havenIconCache = drawable
+        return drawable
     }
 
     @Suppress("DEPRECATION")
