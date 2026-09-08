@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "42450432998",
+    "firebase_url": "https://georescex-default-rtdb.firebaseio.com",
+    "project_id": "georescex",
+    "storage_bucket": "georescex.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:42450432998:android:bf7367eca57b77d1b5dc27",
+        "android_client_info": {
+          "package_name": "com.example.georescux"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "42450432998-toka94cju74pjie6tlqfbe2cdi1pfgf7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoCrj_GdEPie0MrCOp09U9AbUReviFQP8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "42450432998-toka94cju74pjie6tlqfbe2cdi1pfgf7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
