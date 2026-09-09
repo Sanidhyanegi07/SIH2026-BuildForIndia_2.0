@@ -8,6 +8,8 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import com.example.georescux.domain.ble.GeoRescueBleConnectionStateMachine
 import com.example.georescux.domain.ble.GeoRescueBleDiagnostics
 import com.example.georescux.domain.ble.GeoRescueBleFramer
@@ -75,6 +77,9 @@ class GeoRescueBleConnection(
     private var writeInProgress = false
     private var closed = false
     private var remoteRx: BluetoothGattCharacteristic? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile
+    private var mtuSettled = false
 
     /**
      * Initiates the GATT connection (direct connect, LE transport). Returns
@@ -91,7 +96,9 @@ class GeoRescueBleConnection(
                         "role=CLIENT address=$deviceAddress status=$status"
                     )
                     // MTU first: a larger MTU reduces chunk counts for packet frames.
-                    if (!gattIn.requestMtu(REQUESTED_MTU)) {
+                    if (gattIn.requestMtu(REQUESTED_MTU)) {
+                        armMtuWatchdog(gattIn)
+                    } else {
                         // Fall through to discovery at the default MTU.
                         onMtuSettled(gattIn, DEFAULT_MTU)
                     }
@@ -116,6 +123,7 @@ class GeoRescueBleConnection(
             }
 
             override fun onMtuChanged(gattIn: BluetoothGatt, mtu: Int, status: Int) {
+                if (mtuSettled) return
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     negotiatedMtu = mtu
                     GeoRescueBleDiagnostics.info(
@@ -383,12 +391,33 @@ class GeoRescueBleConnection(
     }
 
     private fun onMtuSettled(gattIn: BluetoothGatt, mtu: Int) {
+        if (mtuSettled) return
+        mtuSettled = true
         stateMachine.transitionTo(GeoRescueBleState.DISCOVERING_SERVICES)
         GeoRescueBleDiagnostics.info(
             GeoRescueBleDiagnostics.SERVICE_DISCOVERY_STARTED,
             "address=$deviceAddress"
         )
         gattIn.discoverServices()
+    }
+
+    /**
+     * OEM watchdog: some stacks never deliver onMtuChanged after an accepted
+     * request, which used to leave the connection stuck before service
+     * discovery (peer never became READY). After MTU_WATCHDOG_MS we proceed
+     * with the default MTU instead of hanging.
+     */
+    private fun armMtuWatchdog(gattIn: BluetoothGatt) {
+        mainHandler.postDelayed({
+            if (!mtuSettled && !closed) {
+                GeoRescueBleDiagnostics.warn(
+                    GeoRescueBleDiagnostics.MTU_NEGOTIATED,
+                    "role=CLIENT address=$deviceAddress code=MTU_TIMEOUT proceeding with mtu=$DEFAULT_MTU"
+                )
+                negotiatedMtu = DEFAULT_MTU
+                onMtuSettled(gattIn, DEFAULT_MTU)
+            }
+        }, MTU_WATCHDOG_MS)
     }
 
     private fun writeDescriptorCompat(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor): Boolean =
@@ -413,6 +442,7 @@ class GeoRescueBleConnection(
         const val REQUESTED_MTU = 247
         const val DEFAULT_MTU = 23
         const val ATT_HEADERS = 3
+        const val MTU_WATCHDOG_MS = 2500L
         const val ERROR_NO_SERVICE = -1001
         const val ERROR_NO_CHARACTERISTICS = -1002
         const val ERROR_NO_CCCD = -1003
