@@ -156,7 +156,7 @@ class UttarakhandRegionGraphTest {
         val open = PriorityQueue<Pair<Double, String>>(compareBy { it.first })
         open.add(0.0 to startId)
         while (open.isNotEmpty()) {
-            val (cost, nodeId) = open.poll()
+            val (cost, nodeId) = open.poll() ?: continue
             if (cost > (dist[nodeId] ?: Double.MAX_VALUE)) continue
             if (nodeId == destinationId) return cost
             for ((edge, neighbor) in g.neighbors(nodeId)) {

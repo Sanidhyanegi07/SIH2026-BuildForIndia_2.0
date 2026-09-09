@@ -143,7 +143,6 @@ class SafeRouteOfflineEngineTest {
         val dest = graph.nodes.last().id
 
         val route = repo.findRoute(start, dest)
-        // Must return either a route or null deterministically, never throw
-        assertTrue(route != null || route == null)
+        assertTrue(route != null)
     }
 }
