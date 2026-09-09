@@ -110,7 +110,7 @@ class GeoRescueBleManager(
         sink = packetSink,
         seenStore = repository,
         outboundQueue = repository,
-        onPacketAccepted = { packet -> handleAcceptedPacket(packet, fromPeerId = null) },
+        onPacketAcceptedWithPeer = { packet, fromPeerId -> handleAcceptedPacket(packet, fromPeerId) },
     ).apply { restoreState() }
 
     private val capabilities = GeoRescueBleCapabilities(appContext)

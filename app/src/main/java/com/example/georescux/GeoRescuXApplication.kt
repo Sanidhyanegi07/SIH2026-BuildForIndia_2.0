@@ -210,7 +210,8 @@ class AppContainer(context: Context) {
                 packet: com.example.georescux.domain.ble.GeoRescueBlePacket,
                 fromPeerId: String?,
             ) {
-                if (fromPeerId == null) return // locally published packets were already persisted by SOS layer
+                // Ignore locally originated packets (already persisted by local SOS layer)
+                if (packet.originDeviceId == selfOriginId) return
                 val emergency = bleSosBridge.emergencyFromPacket(packet) ?: return
                 // Persist into the SAME local SOS store the existing sync
                 // engine reads — a device with Internet will upload the
@@ -223,6 +224,11 @@ class AppContainer(context: Context) {
                         startedAtMs = packet.timestampMs,
                     )
                 }
+                // If signed in, mark pending so this device uploads the relayed emergency to Firebase
+                authRepository.currentUserId?.let { uid ->
+                    syncStateStore.setSosAlertPending(uid, emergency.id, pending = true)
+                }
+                syncRetryCoordinator.retryPendingNow()
             }
         })
         manager

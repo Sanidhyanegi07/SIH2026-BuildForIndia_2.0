@@ -66,9 +66,16 @@ Firebase acts as a synchronization layer, not the only source of truth for immed
 
 Administrative access is enforced with Firebase custom claims and trusted backend infrastructure rather than client-side flags.
 
-### 8. BLE emergency mesh (raw GATT subsystem)
+### 8. BLE emergency mesh (raw GATT subsystem & multi-hop relay)
 
-A dedicated raw-BLE subsystem (`data/ble` + `domain/ble`, see **[docs/BLE_SUBSYSTEM.md](docs/BLE_SUBSYSTEM.md)**) provides a diagnosable phone-to-phone emergency transport alongside the Google Nearby relay: a custom GATT service (RX/TX characteristics), UUID-filtered scanning, nameless advertising, structured emergency packets with unique `packetId`s (idempotent), durable deduplication, hop-based TTL (default 5), store-and-forward, and a two-device diagnostic screen with single-tag logging (`GeoRescuX-BLE`). BLE never replaces Firebase: received SOS packets are persisted into the same local store the existing sync engine uploads when Internet returns, and BLE failure can never block or cancel SOS activation.
+A dedicated raw-BLE subsystem (`data/ble` + `domain/ble`, see **[docs/BLE_SUBSYSTEM.md](docs/BLE_SUBSYSTEM.md)**) provides a reliable, phone-to-phone emergency transport:
+- **Foreground Service Lifecycle**: Managed by `GeoRescueBleForegroundService` with an ongoing status notification, running even when the app is backgrounded or the screen is locked.
+- **Hardware Recovery**: `BluetoothStateReceiver` detects adapter on/off toggling and automatically recovers advertising and scanning.
+- **Scan Cycling & Throttling Defense**: Duty cycle (30s scanning / 10s pause) keeps radios responsive while preventing Android background scan throttling.
+- **Symmetric GATT Roles**: Every node simultaneously acts as GATT server (advertising, receiving on RX, notifying on TX) and GATT client (scanning, connecting, writing to peer RX, receiving TX notifications).
+- **Multi-Hop Relay**: Structured `GeoRescueBlePacket`s with unique IDs, durable deduplication (`GeoRescueBleRepository`), and hop-based TTL decrement (default 5 hops) ensure store-and-forward routing (Phone A → Phone B → Phone C → Phone D) without endless loops.
+- **Seamless Cloud Ingestion**: An internet-capable node that receives a relayed SOS persists it to local storage and immediately triggers `SyncRetryCoordinator` to push the alert to Firebase.
+- **Diagnostics & Safety**: Single-tag logging (`GeoRescueX-BLE`), `BleDiagnosticsActivity` HUD, and isolated failure containment ensure BLE issues never affect SOS activation or device stability.
 
 ## Architecture
 

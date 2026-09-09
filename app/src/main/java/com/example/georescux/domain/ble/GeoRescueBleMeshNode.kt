@@ -89,6 +89,8 @@ class GeoRescueBleMeshNode(
     private val outboundQueue: GeoRescueBleOutboundPacketQueue,
     /** Called with every accepted packet BEFORE forwarding (persistence/UI hook). */
     var onPacketAccepted: ((GeoRescueBlePacket) -> Unit)? = null,
+    /** Called with every accepted packet and the peer it was received from (or null for local). */
+    var onPacketAcceptedWithPeer: ((GeoRescueBlePacket, String?) -> Unit)? = null,
     private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
 
@@ -132,6 +134,7 @@ class GeoRescueBleMeshNode(
         if (!seenPacketIds.add(packet.packetId)) return GeoRescueBleRelayDecision.DUPLICATE
         seenStore.saveSeenPacketId(packet.packetId)
         onPacketAccepted?.invoke(packet)
+        onPacketAcceptedWithPeer?.invoke(packet, null)
         return forward(packet)
     }
 
@@ -161,6 +164,7 @@ class GeoRescueBleMeshNode(
             sentPeers.getOrPut(packet.packetId) { HashSet() }.add(sender)
         }
         onPacketAccepted?.invoke(packet)
+        onPacketAcceptedWithPeer?.invoke(packet, fromPeerId)
 
         if (!packet.hasHopsRemaining()) return GeoRescueBleRelayDecision.ACCEPTED_LOCAL
         val nextHop = packet.forNextHop()

@@ -2,6 +2,7 @@ package com.example.georescux.domain.ble
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -276,4 +277,26 @@ class GeoRescueBleMeshNodeTest {
         assertEquals(GeoRescueBleRelayDecision.ACCEPTED_FORWARDED, node.ingest(sosPacket(packetId = "GRX-2").serialize(), null))
         assertEquals(2, sink.sent.size)
     }
+
+    @Test
+    fun `onPacketAcceptedWithPeer delivers fromPeerId on ingest and null on publish`() {
+        var deliveredPeer: String? = "UNSET"
+        val node = GeoRescueBleMeshNode(
+            selfDeviceId = "DEVICE_B",
+            sink = sink,
+            seenStore = seenStore,
+            outboundQueue = outboundQueue,
+            onPacketAcceptedWithPeer = { _, peerId -> deliveredPeer = peerId },
+            nowMs = { nowMs },
+        )
+
+        val peerPacket = sosPacket(packetId = "GRX-from-peer", origin = "DEVICE_A")
+        node.ingest(peerPacket.serialize(), "PEER_MAC_ADDRESS_1")
+        assertEquals("PEER_MAC_ADDRESS_1", deliveredPeer)
+
+        val localPacket = sosPacket(packetId = "GRX-local-pub", origin = "DEVICE_B")
+        node.publish(localPacket)
+        assertNull(deliveredPeer)
+    }
 }
+

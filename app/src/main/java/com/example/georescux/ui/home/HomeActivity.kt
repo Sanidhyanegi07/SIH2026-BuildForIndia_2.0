@@ -23,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
+import com.example.georescux.data.ble.GeoRescueBleForegroundService
 import com.example.georescux.domain.sos.SosEvent
 import com.example.georescux.domain.sos.SosStateMachine
 import com.example.georescux.domain.sos.SosState
@@ -254,15 +255,10 @@ class HomeActivity : AppCompatActivity() {
     private fun startBleMeshIfPermissionsGranted() {
         val deviceName = Build.MODEL ?: "GeoRescuXDevice"
         (application as GeoRescuXApplication).appContainer.relayConnectionManager.startMesh(deviceName)
-        // Raw BLE subsystem (GATT emergency mesh): initialize opportunistically.
-        // Failures are contained and logged under "GeoRescueX-BLE" — BLE
-        // problems must never affect SOS or the Nearby relay.
+        // Start foreground service to maintain BLE offline emergency mesh lifecycle
+        // across app minimize, backgrounding, and screen locks.
         runCatching {
-            val manager = (application as GeoRescuXApplication).appContainer.bleManager
-            if (manager.initialize()) {
-                manager.startAdvertising()
-                manager.startScanning()
-            }
+            GeoRescueBleForegroundService.start(this)
         }
     }
 

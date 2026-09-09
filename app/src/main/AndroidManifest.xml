@@ -20,6 +20,10 @@ xmlns:tools="http://schemas.android.com/tools">
     <!-- Gap B fix: required on Android 13+ to post BLE SOS alert notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:targetApi="33" />
 
+    <!-- BLE Mesh Foreground Service permissions (Android 9+ and Android 14+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
 <application
     android:name=".GeoRescuXApplication"
     android:allowBackup="true"
@@ -55,6 +59,13 @@ xmlns:tools="http://schemas.android.com/tools">
         android:name=".ui.sos.SosActivity"
         android:exported="false"
         android:theme="@style/Theme.GeoRescuX" />
+
+    <!-- Foreground Service: keeps BLE offline disaster-response mesh active in background -->
+    <service
+        android:name=".data.ble.GeoRescueBleForegroundService"
+        android:enabled="true"
+        android:exported="false"
+        android:foregroundServiceType="connectedDevice" />
 
 </application>
 
