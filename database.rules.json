@@ -4,6 +4,7 @@
     ".write": false,
 
     "sos_alerts": {
+      ".read": "auth != null && auth.token.admin == true",
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || auth.token.admin == true)",
         ".write": "auth != null && auth.uid == $uid"
@@ -14,6 +15,28 @@
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
         ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+
+    "hazards": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin == true"
+    },
+
+    "blocked_roads": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin == true"
+    },
+
+    "emergency_resources": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin == true"
+    },
+
+    "incidents": {
+      ".read": "auth != null",
+      "$incidentId": {
+        ".write": "auth != null && (auth.token.admin == true || !data.exists())"
       }
     },
 

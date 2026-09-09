@@ -7,4 +7,5 @@ import com.example.georescux.data.auth.UserRole
  */
 interface RoleResolver {
     suspend fun resolveRole(): UserRole
+    suspend fun resolveRole(forceRefresh: Boolean): UserRole = resolveRole()
 }

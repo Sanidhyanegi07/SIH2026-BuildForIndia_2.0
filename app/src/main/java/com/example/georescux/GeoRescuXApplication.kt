@@ -167,6 +167,9 @@ class AppContainer(context: Context) {
     val hazardEventRouteBridge: com.example.georescux.data.routing.HazardEventRouteBridge by lazy {
         com.example.georescux.data.routing.HazardEventRouteBridge(routeRepository)
     }
+    val hazardCloudDataSource: com.example.georescux.data.sync.FirebaseHazardCloudDataSource by lazy {
+        com.example.georescux.data.sync.FirebaseHazardCloudDataSource(routeRepository)
+    }
     val reportHazardUseCase: com.example.georescux.domain.hazard.ReportHazardUseCase by lazy {
         com.example.georescux.domain.hazard.ReportHazardUseCase(
             relayEngine,

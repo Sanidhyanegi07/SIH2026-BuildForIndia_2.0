@@ -11,12 +11,13 @@ import kotlinx.coroutines.tasks.await
  */
 class FirebaseRoleResolver(private val firebaseAuth: FirebaseAuth) : RoleResolver {
 
-    override suspend fun resolveRole(): UserRole {
+    override suspend fun resolveRole(): UserRole = resolveRole(false)
+
+    override suspend fun resolveRole(forceRefresh: Boolean): UserRole {
         val user = firebaseAuth.currentUser ?: return UserRole.UNKNOWN
         return try {
-            // getIdToken(false) uses the cached cryptographically-signed JWT. 
-            // If the token is expired, Firebase implicitly attempts to refresh it.
-            val result = user.getIdToken(false).await()
+            // getIdToken(forceRefresh) uses the cached JWT when false, or fetches a fresh JWT when true.
+            val result = user.getIdToken(forceRefresh).await()
             val isAdmin = result.claims["admin"] == true
             if (isAdmin) UserRole.ADMIN else UserRole.USER
         } catch (e: Exception) {

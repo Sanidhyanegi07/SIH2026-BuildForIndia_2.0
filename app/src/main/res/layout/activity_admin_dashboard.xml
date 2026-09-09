@@ -12,35 +12,51 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="16dp">
 
-        <TextView
-            android:id="@+id/textViewAdminTitle"
-            android:layout_width="wrap_content"
+        <!-- Admin Title Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="16dp"
-            android:text="ADMIN PORTAL"
-            android:textColor="@color/violet_accent"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="GEORESCUX ADMIN"
+                android:textColor="@color/violet_accent"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textViewAdminBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_badge_pill"
+                android:text="CUSTOM CLAIM: ADMIN"
+                android:textColor="@color/safe_green"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/textViewAdminEmail"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="16dp"
-            android:text="Logged in as Admin"
+            android:layout_marginBottom="14dp"
+            android:text="Logged in as: admin@georescux.com"
             android:textColor="@color/text_secondary"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
 
-        <!-- Quick Summary Stats Card -->
+        <!-- Operational Status & Sync Monitor Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="14dp"
             app:cardBackgroundColor="@color/bg_card"
             app:cardCornerRadius="14dp"
             app:cardElevation="0dp"
@@ -51,81 +67,243 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="14dp">
 
-                <TextView
-                    android:id="@+id/textViewAdminStatus"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Firebase: Connecting..."
-                    android:textColor="@color/safe_green"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/textViewActiveEmergenciesCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="Active Emergencies: 0"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp" />
+                    <TextView
+                        android:id="@+id/textViewAdminStatus"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Firebase: Connected"
+                        android:textColor="@color/safe_green"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/textViewTotalUsersCount"
-                    android:layout_width="wrap_content"
+                    <TextView
+                        android:id="@+id/textViewSyncStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Sync: Active"
+                        android:textColor="@color/mesh_sky"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Total Emergency Records: 0"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textViewActiveEmergenciesCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/sos_red"
+                            android:textSize="20sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Active SOS"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textViewHazardsCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/hazard_orange"
+                            android:textSize="20sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Hazards / Blocks"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textViewIncidentsCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/warn_amber"
+                            android:textSize="20sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Incidents"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textViewTotalUsersCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/text_primary"
+                            android:textSize="20sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Total Records"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Navigation Buttons -->
+        <!-- Navigation Tabs -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/buttonTabEmergencies"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_violet"
+                    android:text="🚨 SOS Events"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+                <Button
+                    android:id="@+id/buttonTabHazards"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="⚠️ Hazards &amp; Roads"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+                <Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+                <Button
+                    android:id="@+id/buttonTabResources"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="🏥 Resources &amp; System"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- Operational Action Bar (for adding hazards/blocks) -->
         <LinearLayout
+            android:id="@+id/layoutHazardActions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="12dp"
+            android:visibility="gone">
 
             <Button
-                android:id="@+id/buttonAdminEmergencies"
+                android:id="@+id/buttonAddHazard"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginEnd="6dp"
                 android:background="@drawable/bg_button_violet"
-                android:text="Active Emergencies"
+                android:text="+ Add Hazard"
                 android:textAllCaps="false"
                 android:textColor="@color/white"
                 android:textSize="12sp"
                 app:backgroundTint="@null" />
 
             <Button
-                android:id="@+id/buttonAdminUsers"
+                android:id="@+id/buttonBlockRoad"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
-                android:background="@drawable/bg_button_secondary"
-                android:text="Manage Users"
+                android:background="@drawable/bg_button_danger"
+                android:text="🚫 Block Road"
                 android:textAllCaps="false"
-                android:textColor="@color/text_primary"
+                android:textColor="@color/white"
+                android:textSize="12sp"
                 app:backgroundTint="@null" />
         </LinearLayout>
 
-        <!-- Dynamic Results / Alert List Container -->
+        <!-- Section Title -->
         <TextView
             android:id="@+id/textViewSectionTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:text="REALTIME EMERGENCY FEED"
+            android:text="ACTIVE EMERGENCY ALERTS"
             android:textColor="@color/text_muted"
             android:textSize="11sp"
             android:textStyle="bold" />
 
+        <!-- Dynamic Content List -->
         <LinearLayout
             android:id="@+id/adminDataContainer"
             android:layout_width="match_parent"
@@ -149,6 +327,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp"
             android:text="Logout Admin"
             android:textColor="@color/violet_accent"
             app:strokeColor="@color/violet_accent" />

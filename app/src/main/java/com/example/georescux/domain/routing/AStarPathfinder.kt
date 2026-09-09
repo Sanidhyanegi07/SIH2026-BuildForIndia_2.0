@@ -41,7 +41,7 @@ object AStarPathfinder {
         open.add(SearchNode(startId, costSoFar = 0.0, estimatedTotalCost = haversineMeters(start, destination)))
 
         while (open.isNotEmpty()) {
-            val current = open.poll()
+            val current = open.poll() ?: break
             // Skip stale queue entries that were superseded by a cheaper path.
             if (current.costSoFar > (bestCost[current.nodeId] ?: Double.MAX_VALUE)) continue
 

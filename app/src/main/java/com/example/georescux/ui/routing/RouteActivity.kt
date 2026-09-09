@@ -84,6 +84,9 @@ class RouteActivity : AppCompatActivity() {
     private var connectivityBadge: TextView? = null
     private var connectivityCallback: ConnectivityManager.NetworkCallback? = null
     private val sosMarkers = mutableListOf<Marker>()
+    private val blockedOverlays = mutableListOf<org.osmdroid.views.overlay.Overlay>()
+    private var userLocationMarker: Marker? = null
+    private var lastUserFix: GeoPoint? = null
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -98,6 +101,9 @@ class RouteActivity : AppCompatActivity() {
         Configuration.getInstance().osmdroidBasePath = osmdroidBase
         Configuration.getInstance().osmdroidTileCache = File(osmdroidBase, "tiles")
         Configuration.getInstance().userAgentValue = packageName
+        // Stage 9/Phase 5: Bounded tile storage to prevent uncontrolled device cache growth
+        Configuration.getInstance().tileFileSystemCacheMaxBytes = 100L * 1024 * 1024
+        Configuration.getInstance().tileFileSystemCacheTrimBytes = 80L * 1024 * 1024
 
         setContentView(R.layout.activity_route)
 
@@ -134,7 +140,26 @@ class RouteActivity : AppCompatActivity() {
         }
 
         val mapView = findViewById<MapView>(R.id.mapView)
-        mapView.setUseDataConnection(false)
+        mapView.setMultiTouchControls(true)
+        val mapCacheBadge = findViewById<TextView>(R.id.textViewMapCacheState)
+
+        // Wire map floating controls (My Location, Zoom in, Zoom out)
+        findViewById<View>(R.id.buttonMyLocation)?.setOnClickListener {
+            val fix = lastUserFix ?: userLocationMarker?.position
+            if (fix != null) {
+                mapView.controller.animateTo(fix)
+                mapView.controller.setZoom(17.0)
+            } else {
+                Toast.makeText(this, "Acquiring GPS fix...", Toast.LENGTH_SHORT).show()
+                startLocationAcquisition()
+            }
+        }
+        findViewById<View>(R.id.buttonZoomIn)?.setOnClickListener {
+            mapView.controller.zoomIn()
+        }
+        findViewById<View>(R.id.buttonZoomOut)?.setOnClickListener {
+            mapView.controller.zoomOut()
+        }
 
         // Find Mapsforge offline vector map file or fallback to SQLite archive.
         // Candidates: the TileArchiveInstaller-extracted bundled vector map,
@@ -153,8 +178,7 @@ class RouteActivity : AppCompatActivity() {
 
         if (mapFile != null) {
             // OSMARENDER = the classic fully-colored OSM style (streets,
-            // buildings, green areas — the "real map" look). The bare
-            // DEFAULT theme renders unstyled grey lines only.
+            // buildings, green areas — the "real map" look).
             val forge = MapsForgeTileSource.createFromFiles(
                 arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER"
             )
@@ -163,21 +187,27 @@ class RouteActivity : AppCompatActivity() {
                 forge, null
             )
             mapView.tileProvider = provider
+            mapCacheBadge?.text = "Offline Vector Map"
             findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
+        } else if (expectedArchive.exists()) {
+            // Bundled SQLite tile archive for offline use without network
+            try {
+                val provider = org.osmdroid.tileprovider.MapTileProviderBasic(this, org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                mapView.tileProvider = provider
+                mapCacheBadge?.text = "Offline SQLite Map"
+                findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
+            } catch (_: Exception) {
+                mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                mapCacheBadge?.text = "Offline Cached OSM"
+                findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
+            }
         } else {
-            // No offline package for this region yet: fall back to the
-            // standard OSM tile source WITH on-device caching — online it
-            // shows live tiles, and every visited area stays available
-            // offline afterwards. The screen never degrades to "no map
-            // data" when a network has ever been available.
+            // Standard OSM tile source with on-device caching — online it
+            // caches live tiles up to the 100MB bound; visited areas stay available offline.
             mapView.setUseDataConnection(true)
             mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+            mapCacheBadge?.text = "OSM Mapnik (Cached)"
             findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
-            Toast.makeText(
-                this,
-                "Offline package for ${activeRegion.displayName} not bundled — showing cached/online OSM map",
-                Toast.LENGTH_LONG
-            ).show()
         }
         // State-scale regions frame the whole area; the small sample region
         // keeps its street-level default.
@@ -285,32 +315,158 @@ class RouteActivity : AppCompatActivity() {
     }
 
     private fun renderStaticMapOverlays(graph: RouteGraph, mapView: MapView) {
+        val destinationEditText = findViewById<EditText>(R.id.editTextDestinationNode)
+        val startEditText = findViewById<EditText>(R.id.editTextStartNode)
         val havenIcon = rememberHavenIcon()
-        // Render Safe Havens
+        // 1. Render Safe Havens / Emergency Facilities Layer
         graph.nodes.filter { it.isSafeHaven }.forEach { safeHaven ->
-            val marker = Marker(mapView)
-            marker.position = GeoPoint(safeHaven.latitude, safeHaven.longitude)
-            marker.title = "🏥 Safe Haven: ${safeHaven.id}"
-            marker.snippet = "Evacuation Safe Zone"
-            marker.icon = havenIcon
-            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            val marker = Marker(mapView).apply {
+                position = GeoPoint(safeHaven.latitude, safeHaven.longitude)
+                title = "🏥 Safe Haven: ${safeHaven.id}"
+                snippet = "Emergency Resource Zone · Tap to route here"
+                icon = havenIcon
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                setOnMarkerClickListener { _, _ ->
+                    destinationEditText.setText(safeHaven.id)
+                    Toast.makeText(this@RouteActivity, "Destination set to safe haven: ${safeHaven.id}", Toast.LENGTH_SHORT).show()
+                    uiScope.launch {
+                        viewModel.findRouteFromScreen(
+                            selectedStartNodeId = resolveNodeId(startEditText.text.toString()),
+                            destinationNodeId = safeHaven.id,
+                        )
+                    }
+                    true
+                }
+            }
             mapView.overlays.add(marker)
         }
 
-        // Render Hazards
+        // 2. Render Hazards Layer
+        val hazardIcon = rememberHazardIcon()
         graph.hazards.forEach { hazard ->
             val fromNode = graph.node(hazard.fromNodeId)
             val toNode = graph.node(hazard.toNodeId)
             if (fromNode != null && toNode != null) {
                 val midLat = (fromNode.latitude + toNode.latitude) / 2.0
                 val midLng = (fromNode.longitude + toNode.longitude) / 2.0
-                val hazardMarker = Marker(mapView)
-                hazardMarker.position = GeoPoint(midLat, midLng)
-                hazardMarker.title = "⚠️ Hazard: ${hazard.id}"
-                hazardMarker.snippet = "Penalty: +${hazard.penaltyMeters.toInt()}m"
+                val hazardMarker = Marker(mapView).apply {
+                    position = GeoPoint(midLat, midLng)
+                    title = "⚠️ Hazard: ${hazard.id}"
+                    snippet = "Penalty: +${hazard.penaltyMeters.toInt()}m (${hazard.fromNodeId} ↔ ${hazard.toNodeId})"
+                    icon = hazardIcon
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                }
                 mapView.overlays.add(hazardMarker)
             }
         }
+
+        // 3. Render Blocked Roads Layer
+        renderBlockedRoads(graph, mapView)
+    }
+
+    private fun renderBlockedRoads(graph: RouteGraph, mapView: MapView) {
+        synchronized(blockedOverlays) {
+            blockedOverlays.forEach { overlay ->
+                try {
+                    mapView.overlayManager.remove(overlay)
+                } catch (_: Exception) {}
+            }
+            blockedOverlays.clear()
+
+            val blockedIcon = rememberBlockedIcon()
+            val blockedEdges = graph.edges.filter { it.blocked }
+            blockedEdges.forEach { edge ->
+                val fromNode = graph.node(edge.fromNodeId)
+                val toNode = graph.node(edge.toNodeId)
+                if (fromNode != null && toNode != null) {
+                    val line = Polyline(mapView).apply {
+                        outlinePaint.color = 0xFFD32F2F.toInt()
+                        outlinePaint.strokeWidth = 8f
+                        setPoints(listOf(
+                            GeoPoint(fromNode.latitude, fromNode.longitude),
+                            GeoPoint(toNode.latitude, toNode.longitude)
+                        ))
+                    }
+                    mapView.overlayManager.add(line)
+                    blockedOverlays.add(line)
+
+                    val midLat = (fromNode.latitude + toNode.latitude) / 2.0
+                    val midLng = (fromNode.longitude + toNode.longitude) / 2.0
+                    val blockMarker = Marker(mapView).apply {
+                        position = GeoPoint(midLat, midLng)
+                        title = "🚫 Road Blocked"
+                        snippet = "Impassable: ${edge.fromNodeId} ↔ ${edge.toNodeId}"
+                        icon = blockedIcon
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    }
+                    mapView.overlayManager.add(blockMarker)
+                    blockedOverlays.add(blockMarker)
+                }
+            }
+        }
+    }
+
+    private var hazardIconCache: android.graphics.drawable.Drawable? = null
+    private var blockedIconCache: android.graphics.drawable.Drawable? = null
+    private var userLocationIconCache: android.graphics.drawable.Drawable? = null
+
+    private fun rememberHazardIcon(): android.graphics.drawable.Drawable {
+        hazardIconCache?.let { return it }
+        val size = 44
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFF97316.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
+        paint.color = android.graphics.Color.WHITE
+        paint.strokeWidth = 5f
+        canvas.drawLine(size / 2f, 10f, size / 2f, size - 14f, paint)
+        canvas.drawPoint(size / 2f, size - 8f, paint)
+        val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
+        hazardIconCache = drawable
+        return drawable
+    }
+
+    private fun rememberBlockedIcon(): android.graphics.drawable.Drawable {
+        blockedIconCache?.let { return it }
+        val size = 44
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFD32F2F.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
+        paint.color = android.graphics.Color.WHITE
+        paint.strokeWidth = 6f
+        canvas.drawLine(10f, size / 2f, size - 10f, size / 2f, paint)
+        val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
+        blockedIconCache = drawable
+        return drawable
+    }
+
+    private fun rememberUserLocationIcon(): android.graphics.drawable.Drawable {
+        userLocationIconCache?.let { return it }
+        val size = 48
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val outerPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0x442196F3.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, outerPaint)
+        val ringPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFFFFFFF.toInt()
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 3f
+        }
+        canvas.drawCircle(size / 2f, size / 2f, 14f, ringPaint)
+        val centerPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFF1976D2.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, 12f, centerPaint)
+        val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
+        userLocationIconCache = drawable
+        return drawable
     }
 
     /** Cached green cross marker so all havens share one bitmap. */
@@ -379,6 +535,9 @@ class RouteActivity : AppCompatActivity() {
         locationStarted = true
         container().locationRepository.startAcquisition { fix ->
             runOnUiThread {
+                lastUserFix = GeoPoint(fix.latitude, fix.longitude)
+                updateUserLocationMarker(fix.latitude, fix.longitude, fix.accuracyMeters, fix.provider)
+
                 // Stage 7B-4 region selection: a fix inside another bundled
                 // region switches the active region and rebinds the screen.
                 val fixRegion = MapRegionCatalog.regionForLocation(fix.latitude, fix.longitude)
@@ -393,9 +552,22 @@ class RouteActivity : AppCompatActivity() {
                     return@runOnUiThread
                 }
                 viewModel.setStartFromLocation(fix.latitude, fix.longitude)
-                container().locationRepository.stopAcquisition()
             }
         }
+    }
+
+    private fun updateUserLocationMarker(lat: Double, lng: Double, accuracyMeters: Float, provider: String) {
+        val mapView = findViewById<MapView>(R.id.mapView) ?: return
+        val marker = userLocationMarker ?: Marker(mapView).also { m ->
+            m.icon = rememberUserLocationIcon()
+            m.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            mapView.overlays.add(m)
+            userLocationMarker = m
+        }
+        marker.position = GeoPoint(lat, lng)
+        marker.title = "📍 Your Location"
+        marker.snippet = String.format(Locale.US, "Accuracy: ±%.0fm · %s", accuracyMeters, provider)
+        mapView.invalidate()
     }
 
     /**
@@ -648,13 +820,22 @@ class RouteActivity : AppCompatActivity() {
         // this screen was closed must appear on the map, and the badge must
         // reflect the current network state.
         updateConnectivityBadge()
-        if (staticOverlaysRendered) renderSosMarkers()
+        if (staticOverlaysRendered) {
+            renderSosMarkers()
+            graph?.let { renderBlockedRoads(it, findViewById(R.id.mapView)) }
+        }
         registerConnectivityCallback()
+        try {
+            container().hazardCloudDataSource.startObserving()
+        } catch (_: Exception) {}
     }
 
     override fun onPause() {
         super.onPause()
         unregisterConnectivityCallback()
+        try {
+            container().hazardCloudDataSource.stopObserving()
+        } catch (_: Exception) {}
     }
 
     private fun registerConnectivityCallback() {
