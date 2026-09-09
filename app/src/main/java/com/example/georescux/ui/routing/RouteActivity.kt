@@ -100,7 +100,7 @@ class RouteActivity : AppCompatActivity() {
         val osmdroidBase = File(filesDir, "osmdroid")
         Configuration.getInstance().osmdroidBasePath = osmdroidBase
         Configuration.getInstance().osmdroidTileCache = File(osmdroidBase, "tiles")
-        Configuration.getInstance().userAgentValue = packageName
+        Configuration.getInstance().userAgentValue = "GeoRescuX/1.0 (Android; Emergency Rescue; contact: support@georescux.org)"
         // Stage 9/Phase 5: Bounded tile storage to prevent uncontrolled device cache growth
         Configuration.getInstance().tileFileSystemCacheMaxBytes = 100L * 1024 * 1024
         Configuration.getInstance().tileFileSystemCacheTrimBytes = 80L * 1024 * 1024
@@ -162,8 +162,6 @@ class RouteActivity : AppCompatActivity() {
         }
 
         // Find Mapsforge offline vector map file or fallback to SQLite archive.
-        // Candidates: the TileArchiveInstaller-extracted bundled vector map,
-        // then the regional-map-package locations (output/{regionId}/state.map).
         val expectedArchive = File(osmdroidBase, "${activeRegion.id}-tiles.sqlite")
         val expectedZip = File(osmdroidBase, "${activeRegion.id}-tiles.zip")
         val expectedMap = File(osmdroidBase, "${activeRegion.id}-tiles.map")
@@ -177,8 +175,7 @@ class RouteActivity : AppCompatActivity() {
         val mapFile = mapCandidates.firstOrNull { it.exists() }
 
         if (mapFile != null) {
-            // OSMARENDER = the classic fully-colored OSM style (streets,
-            // buildings, green areas — the "real map" look).
+            // OSMARENDER = the classic fully-colored OSM style
             val forge = MapsForgeTileSource.createFromFiles(
                 arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER"
             )
@@ -187,23 +184,20 @@ class RouteActivity : AppCompatActivity() {
                 forge, null
             )
             mapView.tileProvider = provider
+            mapView.setUseDataConnection(false)
             mapCacheBadge?.text = "Offline Vector Map"
             findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
-        } else if (expectedArchive.exists()) {
-            // Bundled SQLite tile archive for offline use without network
-            try {
-                val provider = org.osmdroid.tileprovider.MapTileProviderBasic(this, org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-                mapView.tileProvider = provider
-                mapCacheBadge?.text = "Offline SQLite Map"
-                findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
-            } catch (_: Exception) {
-                mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-                mapCacheBadge?.text = "Offline Cached OSM"
-                findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
-            }
+        } else if (expectedArchive.exists() || expectedZip.exists()) {
+            // Bundled offline tile archive: provider in sqlite is "${activeRegion.id}-offline"
+            mapView.setUseDataConnection(false)
+            val tileSourceName = "${activeRegion.id}-offline"
+            mapView.setTileSource(
+                XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
+            )
+            mapCacheBadge?.text = "Offline SQLite Map"
+            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
         } else {
-            // Standard OSM tile source with on-device caching — online it
-            // caches live tiles up to the 100MB bound; visited areas stay available offline.
+            // Standard OSM tile source with on-device caching when no bundled offline package
             mapView.setUseDataConnection(true)
             mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
             mapCacheBadge?.text = "OSM Mapnik (Cached)"
