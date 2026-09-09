@@ -45,6 +45,7 @@ import org.osmdroid.views.overlay.Polyline
 import java.io.File
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import org.mapsforge.map.rendertheme.InternalRenderTheme
+import org.mapsforge.map.rendertheme.XmlRenderTheme
 import org.osmdroid.mapsforge.MapsForgeTileProvider
 import org.osmdroid.mapsforge.MapsForgeTileSource
 import org.osmdroid.tileprovider.util.SimpleRegisterReceiver
@@ -151,7 +152,12 @@ class RouteActivity : AppCompatActivity() {
         val mapFile = mapCandidates.firstOrNull { it.exists() }
 
         if (mapFile != null) {
-            val forge = MapsForgeTileSource.createFromFiles(arrayOf(mapFile), InternalRenderTheme.DEFAULT, "RenderTheme.DEFAULT")
+            // OSMARENDER = the classic fully-colored OSM style (streets,
+            // buildings, green areas — the "real map" look). The bare
+            // DEFAULT theme renders unstyled grey lines only.
+            val forge = MapsForgeTileSource.createFromFiles(
+                arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER"
+            )
             val provider = MapsForgeTileProvider(
                 SimpleRegisterReceiver(this),
                 forge, null
