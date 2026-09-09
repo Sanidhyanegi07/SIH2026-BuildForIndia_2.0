@@ -16,11 +16,11 @@ The application is built around a three-phase lifecycle:
 
 | Login | Register | Dashboard |
 |---|---|---|
-| ![Login](images/login.jpg) | ![Register](images/register.jpg) | ![Dashboard](images/dashboard.jpg) |
+| ![Login](Images/login.jpg) | ![Register](Images/register.jpg) | ![Dashboard](Images/dashboard.jpg) |
 
 | Safe Route (Uttarakhand) | Admin Panel |
 |---|---|
-| ![Safe Route](images/safe-route.jpg) | ![Admin](images/admin.jpg) |
+| ![Safe Route](Images/safe-route.jpg) | ![Admin](Images/admin.jpg) |
 
 ---
 
