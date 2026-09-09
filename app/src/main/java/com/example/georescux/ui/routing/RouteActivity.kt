@@ -165,12 +165,19 @@ class RouteActivity : AppCompatActivity() {
             mapView.tileProvider = provider
             findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
         } else {
-            val tileSourceName = "${activeRegion.id}-offline"
-            mapView.setTileSource(
-                XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
-            )
-            val hasOfflineData = expectedArchive.exists() || expectedZip.exists()
-            findViewById<TextView>(R.id.textViewNoMapData).visibility = if (hasOfflineData) View.GONE else View.VISIBLE
+            // No offline package for this region yet: fall back to the
+            // standard OSM tile source WITH on-device caching — online it
+            // shows live tiles, and every visited area stays available
+            // offline afterwards. The screen never degrades to "no map
+            // data" when a network has ever been available.
+            mapView.setUseDataConnection(true)
+            mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
+            Toast.makeText(
+                this,
+                "Offline package for ${activeRegion.displayName} not bundled — showing cached/online OSM map",
+                Toast.LENGTH_LONG
+            ).show()
         }
         // State-scale regions frame the whole area; the small sample region
         // keeps its street-level default.
