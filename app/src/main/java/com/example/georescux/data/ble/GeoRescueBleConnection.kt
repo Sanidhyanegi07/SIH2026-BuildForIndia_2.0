@@ -189,6 +189,7 @@ class GeoRescueBleConnection(
                     listener.onConnectionFailed(this@GeoRescueBleConnection, ERROR_NO_CCCD)
                     return
                 }
+                @Suppress("DEPRECATION")
                 val initiated = try {
                     cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     writeDescriptorCompat(gattIn, cccd)
