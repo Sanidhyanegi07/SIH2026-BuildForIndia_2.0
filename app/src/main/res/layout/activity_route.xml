@@ -28,10 +28,22 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:layout_marginBottom="14dp"
             android:text="Offline evacuation routing — Connaught Place, New Delhi"
             android:textColor="@color/text_muted"
             android:textSize="13sp" />
+
+        <!-- Live connectivity / sync-state badge (Phase 17 UX contract:
+             ONLINE / OFFLINE — offline never blocks map, routing or SOS). -->
+        <TextView
+            android:id="@+id/textConnectivityBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="14dp"
+            android:text="● Checking connection…"
+            android:textColor="@color/text_muted"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
 <TextView
             android:layout_width="wrap_content"

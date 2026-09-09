@@ -3,6 +3,9 @@ package com.example.georescux.ui.routing
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Geocoder
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
@@ -77,6 +80,9 @@ class RouteActivity : AppCompatActivity() {
     private var staticOverlaysRendered = false
     private var activeRegion = MapRegionCatalog.sampleRegion
     private var places: List<PlaceEntry> = emptyList()
+    private var connectivityBadge: TextView? = null
+    private var connectivityCallback: ConnectivityManager.NetworkCallback? = null
+    private val sosMarkers = mutableListOf<Marker>()
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -107,6 +113,8 @@ class RouteActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.textRegionSubtitle).text =
             "Offline evacuation routing — ${activeRegion.displayName}"
+        connectivityBadge = findViewById(R.id.textConnectivityBadge)
+        updateConnectivityBadge()
 
         // Offline place-name search: autocomplete + name resolution
         // (places.json is produced by the region's build tool).
@@ -377,6 +385,100 @@ class RouteActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Live SOS layer (spec Phase 6/13): the currently active emergency and
+     * the most recent located emergencies — INCLUDING ones received over
+     * the BLE/Nearby mesh (their ids carry the MESH prefix) — rendered as
+     * red markers on the offline map. Re-rendered on every resume so a SOS
+     * started (or mesh-relayed) while this screen is open appears too.
+     */
+    private fun renderSosMarkers() {
+        val mapView = findViewById<MapView>(R.id.mapView)
+        synchronized(sosMarkers) {
+            sosMarkers.forEach { marker ->
+                try {
+                    mapView.overlayManager.remove(marker)
+                } catch (_: Exception) {
+                }
+            }
+            sosMarkers.clear()
+            val sosIcon = rememberSosIcon()
+            val container = container()
+            // The active emergency is NOT part of history by design — include it explicitly.
+            val active = runCatching { container.sosRepository.getActiveEmergency() }.getOrNull()
+            val historyLocated = runCatching { container.sosRepository.getHistory() }.getOrNull()
+                .orEmpty()
+                .asSequence()
+                .filter { it.location != null }
+                .take(RECENT_SOS_MARKERS)
+            val located = buildList {
+                addAll(historyLocated)
+                if (active?.location != null) add(active)
+            }
+            located.forEach { emergency ->
+                val location = emergency.location ?: return@forEach
+                val marker = Marker(mapView).apply {
+                    position = GeoPoint(location.latitude, location.longitude)
+                    title = if (emergency.isActive) "🚨 ACTIVE SOS" else "SOS record"
+                    snippet = "id=${emergency.id.take(18)}… · " +
+                        (if (emergency.id.startsWith("MESH")) "received via mesh" else "this device")
+                    icon = sosIcon
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                }
+                mapView.overlays.add(marker)
+                sosMarkers.add(marker)
+            }
+        }
+        mapView.invalidate()
+    }
+
+    /** Cached red SOS marker shared by all emergency markers. */
+    private var sosIconCache: android.graphics.drawable.Drawable? = null
+
+    private fun rememberSosIcon(): android.graphics.drawable.Drawable {
+        sosIconCache?.let { return it }
+        val size = 44
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFC62828.toInt()
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
+        paint.color = android.graphics.Color.WHITE
+        paint.strokeWidth = 5f
+        canvas.drawLine(size / 2f, 10f, size / 2f, size - 12f, paint)
+        canvas.drawPoint(size / 2f, size - 8f, paint)
+        val drawable = android.graphics.drawable.BitmapDrawable(resources, bitmap)
+        sosIconCache = drawable
+        return drawable
+    }
+
+    /**
+     * Connectivity badge (spec Phase 17): a single, honest line —
+     * OFFLINE when no usable network (map/routing/SOS unaffected), ONLINE
+     * otherwise with the automatic-sync note. Technical Firebase errors are
+     * never surfaced; failures already land in the durable pending state.
+     */
+    private fun updateConnectivityBadge() {
+        val badge = connectivityBadge ?: return
+        val online = try {
+            val manager = getSystemService(ConnectivityManager::class.java)
+            val network = manager?.activeNetwork
+            val capabilities = network?.let { manager.getNetworkCapabilities(it) }
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true ||
+                capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        } catch (_: Exception) {
+            false
+        }
+        if (online) {
+            badge.text = "● ONLINE — syncing via Firebase · map/routing stay offline-first"
+            badge.setTextColor(0xFF2E7D32.toInt())
+        } else {
+            badge.text = "● OFFLINE — map, Safe Route and SOS fully functional · sync pending"
+            badge.setTextColor(0xFFEF6C00.toInt())
+        }
+    }
+
     private fun container() = (application as GeoRescuXApplication).appContainer
 
     private fun render(
@@ -399,6 +501,7 @@ class RouteActivity : AppCompatActivity() {
             if (!staticOverlaysRendered) {
                 staticOverlaysRendered = true
                 renderStaticMapOverlays(loadedGraph, mapView)
+                renderSosMarkers()
                 loadedGraph.nodes.firstOrNull { it.isSafeHaven }?.id?.let { id ->
                     if (destinationEditText.text.isBlank()) destinationEditText.setText(id)
                 }
@@ -526,8 +629,57 @@ class RouteActivity : AppCompatActivity() {
         if (editText.text.isBlank()) editText.setText(destinationNodeId)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Refresh the live layers: an SOS started (or mesh-relayed) while
+        // this screen was closed must appear on the map, and the badge must
+        // reflect the current network state.
+        updateConnectivityBadge()
+        if (staticOverlaysRendered) renderSosMarkers()
+        registerConnectivityCallback()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterConnectivityCallback()
+    }
+
+    private fun registerConnectivityCallback() {
+        if (connectivityCallback != null) return
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return
+        val newCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                runOnUiThread { updateConnectivityBadge() }
+            }
+
+            override fun onLost(network: Network) {
+                runOnUiThread { updateConnectivityBadge() }
+            }
+        }
+        try {
+            manager.registerDefaultNetworkCallback(newCallback)
+            connectivityCallback = newCallback
+        } catch (_: Exception) {
+            // Badge still reflects state at next resume; never crash.
+        }
+    }
+
+    private fun unregisterConnectivityCallback() {
+        val callback = connectivityCallback ?: return
+        try {
+            getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(callback)
+        } catch (_: Exception) {
+        }
+        connectivityCallback = null
+    }
+
     override fun onDestroy() {
         uiScope.cancel()
         super.onDestroy()
+    }
+
+    private companion object {
+        /** How many recent located emergencies to pin on the map. */
+        const val RECENT_SOS_MARKERS = 10
     }
 }
