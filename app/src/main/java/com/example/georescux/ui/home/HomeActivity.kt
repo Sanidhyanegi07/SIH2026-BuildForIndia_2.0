@@ -34,6 +34,12 @@ import com.example.georescux.ui.routing.RouteActivity
 import com.example.georescux.ui.sos.SosActivity
 import com.example.georescux.domain.sos.SosEmergency
 import com.example.georescux.domain.sos.SosLocationStatus
+import androidx.lifecycle.lifecycleScope
+import com.example.georescux.domain.ble.GeoRescueBleState
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -88,6 +94,15 @@ class HomeActivity : AppCompatActivity() {
     private var sosMachineState = SosState.IDLE
 
     private lateinit var recentActivitySummaryText: TextView
+    private lateinit var textOfflineRelayBadge: TextView
+    private lateinit var textRelayBtStatus: TextView
+    private lateinit var textRelayScanStatus: TextView
+    private lateinit var textRelayAdvStatus: TextView
+    private lateinit var textRelayNodesCount: TextView
+    private lateinit var textRelayReceivedCount: TextView
+    private lateinit var textRelayForwardedCount: TextView
+    private lateinit var textRelayPendingSync: TextView
+    private var relayStatusJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,6 +120,16 @@ class HomeActivity : AppCompatActivity() {
             // Close Home so that pressing Back does not return to a logged-in screen.
             finish()
         }
+
+        // Offline relay status card bindings (Section 16)
+        textOfflineRelayBadge = findViewById(R.id.textOfflineRelayBadge)
+        textRelayBtStatus = findViewById(R.id.textRelayBtStatus)
+        textRelayScanStatus = findViewById(R.id.textRelayScanStatus)
+        textRelayAdvStatus = findViewById(R.id.textRelayAdvStatus)
+        textRelayNodesCount = findViewById(R.id.textRelayNodesCount)
+        textRelayReceivedCount = findViewById(R.id.textRelayReceivedCount)
+        textRelayForwardedCount = findViewById(R.id.textRelayForwardedCount)
+        textRelayPendingSync = findViewById(R.id.textRelayPendingSync)
 
         setupSosButton()
 
@@ -216,6 +241,58 @@ class HomeActivity : AppCompatActivity() {
         // Refresh the latest-alert summary so a newly completed SOS
         // appears here without any unrelated changes.
         refreshRecentActivitySummary()
+        startRelayStatusUpdates()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        relayStatusJob?.cancel()
+        relayStatusJob = null
+    }
+
+    private fun startRelayStatusUpdates() {
+        relayStatusJob?.cancel()
+        relayStatusJob = lifecycleScope.launch {
+            while (isActive) {
+                updateRelayStatusUi()
+                delay(2000L)
+            }
+        }
+    }
+
+    private fun updateRelayStatusUi() {
+        val app = application as? GeoRescuXApplication ?: return
+        val bleManager = app.appContainer.bleManager
+        val authRepo = app.appContainer.authRepository
+        val syncStore = app.appContainer.syncStateStore
+
+        val btEnabled = bluetoothAdapter?.isEnabled == true
+        textRelayBtStatus.text = "● Bluetooth: " + if (btEnabled) "ON" else "OFF"
+        textRelayBtStatus.setTextColor(ContextCompat.getColor(this, if (btEnabled) R.color.text_primary else R.color.sos_red))
+
+        val diag = bleManager.diagnostics()
+        val isScanning = diag.scanning
+        val isAdv = diag.advertising
+
+        textRelayScanStatus.text = "● Scanning: " + if (isScanning) "ACTIVE" else "IDLE"
+        textRelayAdvStatus.text = "● Broadcasting: " + if (isAdv) "ACTIVE" else "IDLE"
+
+        val activeNodes = diag.peers.count { it.state == GeoRescueBleState.READY || it.state == GeoRescueBleState.CONNECTED }
+        val totalNodes = if (activeNodes > 0) activeNodes else diag.nearbyCount
+        textRelayNodesCount.text = "● Nearby relay nodes: $totalNodes"
+
+        val received = diag.seenPackets
+        textRelayReceivedCount.text = "● Messages received: $received"
+        val forwarded = (received - diag.pendingOutbound).coerceAtLeast(0)
+        textRelayForwardedCount.text = "● Messages forwarded: $forwarded"
+
+        val uid = authRepo.currentUserId
+        val pendingCount = if (uid != null) syncStore.pendingSosAlertIds(uid).size else diag.pendingOutbound
+        textRelayPendingSync.text = "● Pending sync: $pendingCount"
+
+        val isRelayActive = btEnabled && (isScanning || isAdv || activeNodes > 0)
+        textOfflineRelayBadge.text = if (isRelayActive) "● ACTIVE" else "● PAUSED"
+        textOfflineRelayBadge.setTextColor(ContextCompat.getColor(this, if (isRelayActive) R.color.safe_green else R.color.text_muted))
     }
 
     private fun checkBlePermissionsAndState() {

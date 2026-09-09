@@ -25,12 +25,15 @@ class SosBleBridgeRepository(
     private val bridge: BleSosBridge,
 ) : SosRepository {
 
+    private var lastEmittedHasLocation = false
+
     override fun getActiveEmergency(): SosEmergency? = delegate.getActiveEmergency()
 
     override fun getHistory(): List<SosEmergency> = delegate.getHistory()
 
     override fun startEmergency(id: String, startedAtMs: Long): SosEmergency? {
         val emergency = delegate.startEmergency(id, startedAtMs)
+        lastEmittedHasLocation = emergency?.location != null
         if (emergency != null) {
             bridge.publishSos(emergency, emergencyId = id)
         }
@@ -38,14 +41,19 @@ class SosBleBridgeRepository(
     }
 
     override fun updateActiveEmergencyLocation(location: SosLocation?, status: SosLocationStatus) {
-        // Location updates are NOT relayed over BLE (same policy as the
-        // Nearby relay): peers already know an SOS is active; the packet's
-        // snapshot location is enough for first responders.
         delegate.updateActiveEmergencyLocation(location, status)
+        if (location != null && !lastEmittedHasLocation) {
+            val active = delegate.getActiveEmergency()
+            if (active != null) {
+                lastEmittedHasLocation = true
+                bridge.publishSos(active, emergencyId = active.id)
+            }
+        }
     }
 
     override fun completeEmergency(stoppedAtMs: Long): SosEmergency? {
         val completed = delegate.completeEmergency(stoppedAtMs)
+        lastEmittedHasLocation = false
         if (completed != null) {
             bridge.publishSos(completed, emergencyId = completed.id)
         }

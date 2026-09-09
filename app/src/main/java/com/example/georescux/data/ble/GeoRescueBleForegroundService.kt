@@ -289,30 +289,32 @@ class GeoRescueBleForegroundService : Service() {
 
     private fun refreshNotificationFromState() {
         val manager = bleManager
-        val statusText = if (manager == null || !manager.initialized) {
-            "Mesh offline • Radio initializing"
+        val (statusText, detailText) = if (manager == null || !manager.initialized) {
+            "Mesh offline • Radio initializing" to "Initializing Bluetooth Low Energy mesh stack..."
         } else {
             val diag = manager.diagnostics()
             val activePeers = diag.peers.count {
                 it.state == GeoRescueBleState.READY || it.state == GeoRescueBleState.CONNECTED
             }
-            when {
+            val status = when {
                 activePeers > 0 -> "Connected to $activePeers peer(s) • Relay active"
                 diag.scanning -> "Scanning for nearby devices..."
-                diag.advertising -> "Advertising • Ready to relay"
+                diag.advertising -> "Broadcasting • Ready to relay"
                 else -> "Mesh relay active (offline)"
             }
+            val detail = "Peers: $activePeers | Nearby: ${diag.nearbyCount} | Queued: ${diag.pendingOutbound} | Seen: ${diag.seenPackets}\nOffline multi-hop disaster SOS mesh active."
+            status to detail
         }
-        updateNotification(statusText)
+        updateNotification(statusText, detailText)
     }
 
-    private fun updateNotification(statusText: String) {
+    private fun updateNotification(statusText: String, detailText: String? = null) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        val notification = buildNotification(statusText)
+        val notification = buildNotification(statusText, detailText)
         notificationManager?.notify(NOTIFICATION_ID, notification)
     }
 
-    private fun buildNotification(statusText: String): Notification {
+    private fun buildNotification(statusText: String, detailText: String? = null): Notification {
         val openAppIntent = Intent(this, HomeActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -333,13 +335,13 @@ class GeoRescueBleForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val body = detailText ?: "$statusText\nOffline disaster-response communication enabled phone-to-phone via BLE mesh."
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_logo)
             .setContentTitle("GeoRescueX Mesh Relay Active")
             .setContentText(statusText)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(
-                "$statusText\nOffline disaster-response communication enabled phone-to-phone via BLE mesh."
-            ))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(openAppPendingIntent)
             .addAction(
                 0,

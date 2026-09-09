@@ -57,6 +57,18 @@ class SosActivity : AppCompatActivity() {
 
         val container = (application as GeoRescuXApplication).appContainer
 
+        // Ensure BLE Foreground Service is active during an SOS emergency
+        runCatching {
+            val hasPermissions = com.example.georescux.domain.ble.GeoRescueBlePermissions.missingCritical(
+                android.os.Build.VERSION.SDK_INT
+            ) { permission ->
+                ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+            }.isEmpty()
+            if (hasPermissions) {
+                com.example.georescux.data.ble.GeoRescueBleForegroundService.start(this)
+            }
+        }
+
         // Restore an active emergency (e.g. the app was restarted while SOS
         // was running), otherwise begin the countdown armed on the dashboard.
         val initialState =

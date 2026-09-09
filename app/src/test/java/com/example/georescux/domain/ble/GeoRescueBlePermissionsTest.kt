@@ -59,7 +59,8 @@ class GeoRescueBlePermissionsTest {
         val report = GeoRescueBlePermissions.report(33) {
             it == GeoRescueBlePermissions.BLUETOOTH_SCAN ||
                 it == GeoRescueBlePermissions.BLUETOOTH_ADVERTISE ||
-                it == GeoRescueBlePermissions.BLUETOOTH_CONNECT
+                it == GeoRescueBlePermissions.BLUETOOTH_CONNECT ||
+                it == GeoRescueBlePermissions.ACCESS_FINE_LOCATION
         }
         assertTrue(report.allRequiredGranted)
         assertTrue(report.missingRuntimePermissions.isEmpty())

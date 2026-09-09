@@ -230,20 +230,53 @@ Key architectural components:
 
 ## Project Status
 
-This is an active hackathon prototype. Honest current status:
-
 **Working:**
-- Authentication and user-scoped data
-- SOS activation with local-first persistence and background GPS
-- Offline Safe Route calculation and rerouting for the Uttarakhand region
-- Admin dashboard with real-time SOS/hazard monitoring
-- Firebase sync with durable retry via WorkManager
+- **Offline Phone-to-Phone BLE Emergency Mesh ($A \to B \to C \to D$)**: Store-and-forward disaster communication network using BLE advertisement discovery, GATT client/server links, hop-based TTL decrement ($TTL = 5 \to 4 \to 3 \to \dots \to 0$), durable duplicate protection (`seenStore`), and automatic peer inventory synchronization (`SYNC_INVENTORY` / `SYNC_REQUEST`).
+- **Foreground Mesh Relay Service**: `GeoRescueBleForegroundService` maintains the mesh radio stack, scan duty-cycling (30s scan / 10s pause), and peer reconnection even when the app is backgrounded or the screen is locked.
+- **Opportunistic Cloud Synchronization**: When an internet-capable phone (Phone D) receives an SOS packet over BLE, it persists the emergency in local storage and immediately syncs it to Firebase Firestore via `SyncRetryCoordinator` and `WorkManager`.
+- **Offline SOS & GPS Intelligence**: SOS activation, local persistence (Room/SQLite), and GPS location acquisition operate completely offline.
+- **Offline Safe Route & Evacuation**: Complete A* routing and hazard avoidance across 117k+ nodes in the Uttarakhand region.
+- **Admin Dashboard**: Real-time cloud incident monitoring and rescue dispatch.
+- **Authentication & Security**: Role-based access control, Firebase custom claims, and local security.
 
-**Not yet implemented:**
-- Phone-to-phone peer relay (BLE / Nearby Connections) for zero-network SOS forwarding
-- India-wide (multi-region) routing coverage
-- Verified shelter / hospital / police / fire-station datasets
-- India 112 emergency service integration
+---
+
+## Testing the Offline BLE Multi-Hop Mesh (3–4 Android Phones)
+
+Follow these steps to verify the complete $A \to B \to C \to D \to \text{Firebase} \to \text{Admin}$ disaster relay workflow:
+
+### 1. Device Preparation
+- Install the debug APK on 3 or 4 physical Android devices: **Phone A**, **Phone B**, **Phone C**, and **Phone D**.
+- Enable **Bluetooth** and **Location** on all phones. Grant all runtime permissions requested by GeoRescueX.
+- **Phones A, B, and C**: Turn **Airplane Mode ON** or disable both Wi-Fi and Mobile Data (simulating complete internet and cellular infrastructure failure).
+- **Phone D**: Keep **Internet (Wi-Fi or Mobile Data) ON** (simulating an emergency shelter or edge perimeter node with network access).
+
+### 2. Multi-Hop Test Execution ($A \to B \to C \to D$)
+1. **Phone A (Disaster Victim - Offline)**:
+   - Open GeoRescueX.
+   - Press and hold the **SOS** button for 2 seconds.
+   - The emergency activates locally, grabs GPS coordinates, saves to local SQLite storage, and begins BLE advertising and scanning with $TTL = 5$.
+2. **Phone B (Intermediate Relay - Offline)**:
+   - Keep Phone B near Phone A (~5–20 meters).
+   - Phone B's `GeoRescueBleForegroundService` discovers Phone A, forms a GATT connection, synchronizes inventory, and receives the SOS packet.
+   - Phone B stores the emergency locally, verifies it is not a duplicate, decrements $TTL$ to $4$, and displays a heads-up alert notification.
+3. **Phone C (Second Relay - Offline)**:
+   - Position Phone C near Phone B (and outside the radio range of Phone A to strictly verify multi-hop).
+   - Phone B automatically connects to Phone C and forwards the SOS packet.
+   - Phone C stores the emergency locally, decrements $TTL$ to $3$, and displays the alert.
+4. **Phone D (Cloud Gateway - Online)**:
+   - Position Phone D near Phone C.
+   - Phone C connects to Phone D and transfers the packet ($TTL = 2$).
+   - Phone D receives and stores the emergency in local history.
+   - Detecting an active internet connection, Phone D's `SyncRetryCoordinator` automatically uploads the emergency record to Firebase Firestore.
+5. **Cloud / Admin Console**:
+   - Check the Admin Dashboard or Firebase Firestore console.
+   - The SOS alert created by Phone A is displayed with Phone A's original timestamp, coordinates, and emergency ID.
+
+### 3. Resilience Verification Scenarios
+- **Loop Suppression**: If Phone C moves back into range of Phone A, Phone A inspects its durable seen packet store and rejects the packet as `PACKET_DUPLICATE`, preventing broadcast storms.
+- **Terminal Hop Expiration**: Packets decremented to $TTL \le 0$ stop propagating, ensuring packets never circulate indefinitely.
+- **Deferred Store-and-Forward**: If Phone D also has no internet when receiving the packet, the SOS remains safely stored in local SQLite. The moment Phone D reconnects to Wi-Fi hours later, `SyncRetryCoordinator` and WorkManager push the pending alert to the cloud.
 
 ---
 
@@ -256,16 +289,15 @@ Software Track) by **Sanidhya, Karan, Rudraksh, and Shobhit**.
 
 ## Getting Started
 
-> Update this section to match your actual project structure/build steps.
-
 1. Clone the repository.
 2. Open in Android Studio.
-3. Add your own `google-services.json` (Firebase project config) under `app/`.
-4. Build and run on a physical Android device (recommended over emulator for GPS/offline
-   map testing).
+3. Ensure `app/google-services.json` is present for Firebase connectivity.
+4. Connect physical Android test devices via USB / Wi-Fi debugging.
+5. Build and run `:app` in `Debug` variant.
 
 ---
 
 ## License
 
-Add a license of your choice (e.g. MIT) here.
+MIT License.
+

@@ -85,7 +85,7 @@ class AppContainer(context: Context) {
     // Stage 7B-3: durable, per-account record of what still needs to reach
     // Firebase; survives process death and is never cloud data. ONE instance
     // is shared by every syncing repository.
-    private val syncStateStore: SyncStateStore = SharedPreferencesSyncStateStore(appContext)
+    val syncStateStore: SyncStateStore = SharedPreferencesSyncStateStore(appContext)
 
     // SOS (Phase 1: local-only storage, works offline; Firebase sync later).
     private val sosStore: LocalSosStore = SharedPreferencesSosStore(appContext)
@@ -354,6 +354,21 @@ class GeoRescuXApplication : Application() {
             val coordinator = appContainer.syncRetryCoordinator
             coordinator.start()
             coordinator.retryPendingNow()
+
+            // Auto-start BLE foreground mesh service if critical permissions are granted
+            runCatching {
+                val hasBlePermissions = com.example.georescux.domain.ble.GeoRescueBlePermissions.missingCritical(
+                    Build.VERSION.SDK_INT
+                ) { permission ->
+                    androidx.core.content.ContextCompat.checkSelfPermission(
+                        this@GeoRescuXApplication,
+                        permission
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                }.isEmpty()
+                if (hasBlePermissions) {
+                    com.example.georescux.data.ble.GeoRescueBleForegroundService.start(this@GeoRescuXApplication)
+                }
+            }
         }
     }
 

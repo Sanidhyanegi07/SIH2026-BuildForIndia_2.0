@@ -160,6 +160,10 @@ class GeoRescueBleManager(
         readiness = ready
         if (!ready.ready) {
             GeoRescueBleDiagnostics.error(
+                GeoRescueBleDiagnostics.BLE_PERMISSION_MISSING,
+                "reason=${ready.failureReason}"
+            )
+            GeoRescueBleDiagnostics.error(
                 GeoRescueBleDiagnostics.BLE_INIT_FAILED,
                 "reason=${ready.failureReason}"
             )
@@ -213,6 +217,10 @@ class GeoRescueBleManager(
             initialized = true
         }
         GeoRescueBleDiagnostics.info(
+            GeoRescueBleDiagnostics.BLE_INITIALIZED,
+            "advertiser=${newAdvertiser.isSupported()} scanner=${newScanner.isSupported()} gattServer=open"
+        )
+        GeoRescueBleDiagnostics.info(
             GeoRescueBleDiagnostics.BLE_INIT_SUCCESS,
             "advertiser=${newAdvertiser.isSupported()} scanner=${newScanner.isSupported()} gattServer=open"
         )
@@ -229,6 +237,7 @@ class GeoRescueBleManager(
             }
 
             override fun onAdvertisingFailed(errorCode: Int) {
+                GeoRescueBleDiagnostics.error(GeoRescueBleDiagnostics.ADVERTISING_FAILED, "errorCode=$errorCode")
                 setLastError("advertising failed: errorCode=$errorCode")
             }
         })
@@ -242,15 +251,22 @@ class GeoRescueBleManager(
 
     fun startScanning(): Boolean {
         val scan = synchronized(lock) { scanner } ?: return false
-        return scan.startScan(object : GeoRescueBleScanner.ScanListener {
+        val started = scan.startScan(object : GeoRescueBleScanner.ScanListener {
             override fun onGeoRescueDeviceFound(device: BluetoothDevice, rssi: Int, advertisedServices: List<ParcelUuid>) {
                 onGeoRescueDeviceDiscovered(device, rssi)
             }
 
             override fun onScanFailed(errorCode: Int) {
+                GeoRescueBleDiagnostics.error(GeoRescueBleDiagnostics.SCANNING_FAILED, "errorCode=$errorCode")
                 setLastError("scan failed: errorCode=$errorCode")
             }
         })
+        if (started) {
+            GeoRescueBleDiagnostics.info(GeoRescueBleDiagnostics.SCANNING_STARTED)
+        } else {
+            GeoRescueBleDiagnostics.error(GeoRescueBleDiagnostics.SCANNING_FAILED, "startScan returned false")
+        }
+        return started
     }
 
     fun stopScanning() {
@@ -258,6 +274,10 @@ class GeoRescueBleManager(
     }
 
     private fun onGeoRescueDeviceDiscovered(device: BluetoothDevice, rssi: Int) {
+        GeoRescueBleDiagnostics.info(
+            GeoRescueBleDiagnostics.PEER_FOUND,
+            "address=${device.address} rssi=$rssi"
+        )
         synchronized(lock) {
             discovered[device.address] = DiscoveredDevice(device.address, rssi, System.currentTimeMillis())
             if (discovered.size > MAX_DISCOVERED_TRACKED) {
@@ -300,6 +320,10 @@ class GeoRescueBleManager(
             val connection = GeoRescueBleConnection(appContext, device, connectionListener)
             entry.connection = connection
             clientPeers[address] = entry
+            GeoRescueBleDiagnostics.info(
+                GeoRescueBleDiagnostics.GATT_CONNECTING,
+                "role=CLIENT address=$address"
+            )
             val started = try {
                 connection.connect()
             } catch (e: Exception) {
@@ -329,6 +353,12 @@ class GeoRescueBleManager(
             synchronized(lock) {
                 clientPeers[connection.deviceAddress]?.stateMachine?.transitionTo(GeoRescueBleState.READY)
             }
+            GeoRescueBleDiagnostics.info(
+                GeoRescueBleDiagnostics.GATT_READY,
+                "role=CLIENT address=${connection.deviceAddress}"
+            )
+            // Automatic Peer Synchronization (Section 11): Exchange inventory
+            meshNode.syncWithPeer(connection.deviceAddress)
             // Store-and-forward: flush everything pending for this peer.
             val delivered = meshNode.onPeerReady(connection.deviceAddress)
             if (delivered > 0) {
@@ -340,6 +370,10 @@ class GeoRescueBleManager(
         }
 
         override fun onDisconnected(connection: GeoRescueBleConnection) {
+            GeoRescueBleDiagnostics.info(
+                GeoRescueBleDiagnostics.GATT_DISCONNECTED,
+                "role=CLIENT address=${connection.deviceAddress}"
+            )
             synchronized(lock) {
                 val entry = clientPeers[connection.deviceAddress]
                 if (entry?.connection === connection) {
@@ -371,6 +405,10 @@ class GeoRescueBleManager(
     // --- GATT server events (server role) ---
 
     private fun onServerPeerConnected(device: BluetoothDevice) {
+        GeoRescueBleDiagnostics.info(
+            GeoRescueBleDiagnostics.GATT_CONNECTING,
+            "role=SERVER address=${device.address}"
+        )
         synchronized(lock) {
             serverPeers.getOrPut(device.address) { ServerPeer(device.address) }
                 .stateMachine.transitionTo(GeoRescueBleState.CONNECTED)
@@ -378,6 +416,10 @@ class GeoRescueBleManager(
     }
 
     private fun onServerPeerDisconnected(device: BluetoothDevice) {
+        GeoRescueBleDiagnostics.info(
+            GeoRescueBleDiagnostics.GATT_DISCONNECTED,
+            "role=SERVER address=${device.address}"
+        )
         synchronized(lock) {
             serverPeers.remove(device.address)?.stateMachine?.transitionTo(GeoRescueBleState.DISCONNECTED)
             serverFramers.remove(device.address)
@@ -392,6 +434,12 @@ class GeoRescueBleManager(
             }
         }
         if (subscribed) {
+            GeoRescueBleDiagnostics.info(
+                GeoRescueBleDiagnostics.GATT_READY,
+                "role=SERVER address=${device.address}"
+            )
+            // Automatic Peer Synchronization (Section 11): Exchange inventory
+            meshNode.syncWithPeer(device.address)
             val delivered = meshNode.onPeerReady(device.address)
             if (delivered > 0) {
                 GeoRescueBleDiagnostics.info(
@@ -455,6 +503,14 @@ class GeoRescueBleManager(
             synchronized(lock) { lastReceived = packet }
         }
         GeoRescueBleDiagnostics.info(
+            GeoRescueBleDiagnostics.PACKET_ACCEPTED,
+            "packetId=${packet.packetId} type=${packet.type.wireName} ttl=${packet.ttl} from=${fromPeerId ?: "local"}"
+        )
+        GeoRescueBleDiagnostics.info(
+            GeoRescueBleDiagnostics.PACKET_STORED,
+            "packetId=${packet.packetId} (seen-store)"
+        )
+        GeoRescueBleDiagnostics.info(
             GeoRescueBleDiagnostics.PACKET_VALID,
             "packetId=${packet.packetId} type=${packet.type.wireName} ttl=${packet.ttl} from=${fromPeerId ?: "local"}"
         )
@@ -479,6 +535,10 @@ class GeoRescueBleManager(
     private fun ingestFrame(json: String, fromPeerId: String) {
         GeoRescueBleDiagnostics.info(
             GeoRescueBleDiagnostics.DATA_RECEIVED,
+            "from=$fromPeerId chars=${json.length}"
+        )
+        GeoRescueBleDiagnostics.info(
+            GeoRescueBleDiagnostics.PACKET_RECEIVED,
             "from=$fromPeerId chars=${json.length}"
         )
         val decision = meshNode.ingest(json, fromPeerId)

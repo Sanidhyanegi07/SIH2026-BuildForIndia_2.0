@@ -97,6 +97,7 @@ class GeoRescueBleMeshNode(
     private val seenPacketIds = Collections.synchronizedSet(HashSet<String>())
     private val sentPeers = HashMap<String, MutableSet<String>>()
     private val outbox = HashMap<String, MutableList<QueuedPacket>>()
+    private val sentJsons = HashMap<String, String>()
 
     init {
         // State restore is explicit ([restoreState]) so construction stays
@@ -105,6 +106,7 @@ class GeoRescueBleMeshNode(
         seenStore.loadAllSeenPacketIds().forEach { seenPacketIds.add(it) }
         // Restore queued outbound packets so store-and-forward survives restart.
         outboundQueue.loadQueued().forEach { queued ->
+            sentJsons[queued.packetId] = queued.packetJson
             outbox.getOrPut(OUTBOX_ANY_PEER) { mutableListOf() }.add(queued)
         }
         seenStore.clearExpiredBefore(nowMs() - SEEN_RETENTION_MS)
@@ -114,6 +116,7 @@ class GeoRescueBleMeshNode(
     fun restoreState() {
         seenStore.loadAllSeenPacketIds().forEach { seenPacketIds.add(it) }
         outboundQueue.loadQueued().forEach { queued ->
+            sentJsons[queued.packetId] = queued.packetJson
             val pending = synchronized(outbox) { outbox[OUTBOX_ANY_PEER] ?: mutableListOf() }
             if (pending.none { it.packetId == queued.packetId }) {
                 pending.add(queued)
@@ -133,6 +136,7 @@ class GeoRescueBleMeshNode(
         }
         if (!seenPacketIds.add(packet.packetId)) return GeoRescueBleRelayDecision.DUPLICATE
         seenStore.saveSeenPacketId(packet.packetId)
+        sentJsons[packet.packetId] = packet.serialize()
         onPacketAccepted?.invoke(packet)
         onPacketAcceptedWithPeer?.invoke(packet, null)
         return forward(packet)
@@ -148,6 +152,36 @@ class GeoRescueBleMeshNode(
 
         if (packet.originDeviceId == selfDeviceId) return GeoRescueBleRelayDecision.OWN_PACKET
 
+        // Handle link-local inventory sync protocols (never forwarded beyond 1 hop)
+        if (packet.type == GeoRescueBlePacketType.SYNC_INVENTORY) {
+            if (fromPeerId != null) {
+                val peerIds = packet.payload["ids"]?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+                val missing = peerIds.filter { !seenPacketIds.contains(it) }
+                if (missing.isNotEmpty()) {
+                    createSyncRequestPacket(missing)?.let { reqPacket ->
+                        sink.send(fromPeerId, reqPacket.serialize())
+                    }
+                }
+            }
+            return GeoRescueBleRelayDecision.ACCEPTED_LOCAL
+        }
+
+        if (packet.type == GeoRescueBlePacketType.SYNC_REQUEST) {
+            if (fromPeerId != null) {
+                val reqIds = packet.payload["requestedIds"]?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+                reqIds.forEach { reqId ->
+                    val packetJson = getPacketJson(reqId)
+                    if (packetJson != null) {
+                        val sentSet = sentPeers.getOrPut(reqId) { HashSet() }
+                        if (sink.send(fromPeerId, packetJson)) {
+                            sentSet.add(fromPeerId)
+                        }
+                    }
+                }
+            }
+            return GeoRescueBleRelayDecision.ACCEPTED_LOCAL
+        }
+
         if (!seenPacketIds.add(packet.packetId)) {
             // Durable write is redundant but keeps the store authoritative.
             return GeoRescueBleRelayDecision.DUPLICATE
@@ -160,6 +194,7 @@ class GeoRescueBleMeshNode(
         }
 
         seenStore.saveSeenPacketId(packet.packetId)
+        sentJsons[packet.packetId] = json
         fromPeerId?.let { sender ->
             sentPeers.getOrPut(packet.packetId) { HashSet() }.add(sender)
         }
@@ -203,7 +238,70 @@ class GeoRescueBleMeshNode(
             if (isStale(packet)) return@forEach
             if (tryDeliver(peerId, QueuedPacket(packetId, json, packet.timestampMs, 0))) delivered++
         }
+
         return delivered
+    }
+
+    /**
+     * Automatic Peer Synchronization (Section 11):
+     * Exchanges active inventory with the newly connected peer so it can pull
+     * any missing packets without blind flooding.
+     */
+    fun syncWithPeer(peerId: String): Boolean {
+        val inv = createInventoryPacket() ?: return false
+        return sink.send(peerId, inv.serialize())
+    }
+
+    /** Returns active non-stale packet IDs known to this node. */
+    fun activePacketIds(): List<String> = synchronized(sentJsons) {
+        val active = mutableListOf<String>()
+        sentJsons.forEach { (id, json) ->
+            val packet = GeoRescueBlePacketCodec.deserialize(json)
+            if (packet != null && !isStale(packet) && packet.type != GeoRescueBlePacketType.SYNC_INVENTORY && packet.type != GeoRescueBlePacketType.SYNC_REQUEST) {
+                active.add(id)
+            }
+        }
+        outboundQueue.loadQueued().forEach { queued ->
+            if (!active.contains(queued.packetId) && !isStaleById(queued)) {
+                active.add(queued.packetId)
+            }
+        }
+        active
+    }
+
+    /** Builds link-local SYNC_INVENTORY packet. */
+    fun createInventoryPacket(): GeoRescueBlePacket? {
+        val ids = activePacketIds()
+        if (ids.isEmpty()) return null
+        return GeoRescueBlePacket(
+            packetId = GeoRescueBlePacket.newPacketId(),
+            originDeviceId = selfDeviceId,
+            originEmergencyId = null,
+            timestampMs = nowMs(),
+            ttl = 1,
+            type = GeoRescueBlePacketType.SYNC_INVENTORY,
+            payload = mapOf("ids" to ids.take(15).joinToString(",")),
+        )
+    }
+
+    /** Builds link-local SYNC_REQUEST packet. */
+    fun createSyncRequestPacket(missingIds: List<String>): GeoRescueBlePacket? {
+        if (missingIds.isEmpty()) return null
+        return GeoRescueBlePacket(
+            packetId = GeoRescueBlePacket.newPacketId(),
+            originDeviceId = selfDeviceId,
+            originEmergencyId = null,
+            timestampMs = nowMs(),
+            ttl = 1,
+            type = GeoRescueBlePacketType.SYNC_REQUEST,
+            payload = mapOf("requestedIds" to missingIds.take(15).joinToString(",")),
+        )
+    }
+
+    /** Returns serialized packet JSON by packetId. */
+    fun getPacketJson(packetId: String): String? {
+        sentJsons[packetId]?.let { return it }
+        return outboundQueue.loadQueued().firstOrNull { it.packetId == packetId }?.packetJson
     }
 
     fun pendingCountFor(peerId: String): Int = outbox[peerId]?.size ?: 0
@@ -273,8 +371,6 @@ class GeoRescueBleMeshNode(
         nowMs() - packet.timestampMs > PACKET_MAX_AGE_MS
 
     private fun isStaleById(queued: QueuedPacket) = nowMs() - queued.queuedAtMs > PACKET_MAX_AGE_MS
-
-    private val sentJsons = HashMap<String, String>()
 
     companion object {
         /** Memory-only key for queue entries not bound to a failing peer. */

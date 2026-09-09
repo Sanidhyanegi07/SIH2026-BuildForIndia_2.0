@@ -85,7 +85,13 @@ class SyncingSosRepository(
         // record reached the cloud; a failed one marks them all pending so
         // no failed push is silently lost.
         if (historyUploaded) {
-            history.forEach { syncStateStore.clearSosAlertPending(uid, it.id) }
+            history.forEach {
+                syncStateStore.clearSosAlertPending(uid, it.id)
+                com.example.georescux.domain.ble.GeoRescueBleDiagnostics.info(
+                    com.example.georescux.domain.ble.GeoRescueBleDiagnostics.PACKET_SYNCED_TO_FIREBASE,
+                    "emergencyId=${it.id} uid=$uid"
+                )
+            }
         } else {
             history.forEach { syncStateStore.setSosAlertPending(uid, it.id, pending = true) }
         }
@@ -154,6 +160,12 @@ class SyncingSosRepository(
             false
         }
         syncStateStore.setSosAlertPending(uid, record.id, pending = !uploaded)
+        if (uploaded) {
+            com.example.georescux.domain.ble.GeoRescueBleDiagnostics.info(
+                com.example.georescux.domain.ble.GeoRescueBleDiagnostics.PACKET_SYNCED_TO_FIREBASE,
+                "emergencyId=${record.id} uid=$uid"
+            )
+        }
         return uploaded
     }
 }

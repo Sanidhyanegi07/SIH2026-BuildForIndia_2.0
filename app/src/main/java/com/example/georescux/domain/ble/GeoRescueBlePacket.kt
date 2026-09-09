@@ -59,7 +59,7 @@ data class GeoRescueBlePacket(
         const val MAX_PACKET_BYTES = 2048
 
         /** Maximum character length of a single payload entry. */
-        const val MAX_PAYLOAD_VALUE_CHARS = 256
+        const val MAX_PAYLOAD_VALUE_CHARS = 1024
 
         fun newPacketId(): String = "GRX-${UUID.randomUUID()}"
     }
@@ -68,11 +68,14 @@ data class GeoRescueBlePacket(
 /**
  * Packet types. [SOS] carries emergency relay data; [TEST] is the
  * two-device diagnostic packet identified on the wire as
- * GEORESCUEX_BLE_TEST (the FIRST acceptance criterion of the BLE subsystem).
+ * GEORESCUEX_BLE_TEST; [SYNC_INVENTORY] and [SYNC_REQUEST] provide
+ * lightweight peer state reconciliation.
  */
 enum class GeoRescueBlePacketType(val wireName: String) {
     SOS("SOS"),
-    TEST("GEORESCUEX_BLE_TEST");
+    TEST("GEORESCUEX_BLE_TEST"),
+    SYNC_INVENTORY("GEORESCUEX_BLE_SYNC_INV"),
+    SYNC_REQUEST("GEORESCUEX_BLE_SYNC_REQ");
 
     companion object {
         const val TEST_PACKET_MARKER = "GEORESCUEX_BLE_TEST"
