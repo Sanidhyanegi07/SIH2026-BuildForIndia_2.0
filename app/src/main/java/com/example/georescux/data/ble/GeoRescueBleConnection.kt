@@ -189,10 +189,9 @@ class GeoRescueBleConnection(
                     listener.onConnectionFailed(this@GeoRescueBleConnection, ERROR_NO_CCCD)
                     return
                 }
-                @Suppress("DEPRECATION")
+                gattIn.setCharacteristicNotification(tx, true)
                 val initiated = try {
-                    cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    writeDescriptorCompat(gattIn, cccd)
+                    writeDescriptorCompat(gattIn, cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
                 } catch (e: Exception) {
                     GeoRescueBleDiagnostics.error(
                         GeoRescueBleDiagnostics.NOTIFICATION_FAILED,
@@ -421,10 +420,20 @@ class GeoRescueBleConnection(
         }, MTU_WATCHDOG_MS)
     }
 
-    private fun writeDescriptorCompat(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor): Boolean =
+    private fun writeDescriptorCompat(
+        gatt: BluetoothGatt,
+        descriptor: BluetoothGattDescriptor,
+        value: ByteArray
+    ): Boolean =
         try {
-            @Suppress("DEPRECATION")
-            gatt.writeDescriptor(descriptor)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                gatt.writeDescriptor(descriptor, value) == android.bluetooth.BluetoothStatusCodes.SUCCESS
+            } else {
+                @Suppress("DEPRECATION")
+                descriptor.value = value
+                @Suppress("DEPRECATION")
+                gatt.writeDescriptor(descriptor)
+            }
         } catch (e: Exception) {
             false
         }
