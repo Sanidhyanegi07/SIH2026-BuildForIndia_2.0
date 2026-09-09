@@ -65,7 +65,15 @@ class GeoRescueBleAdvertiser(adapter: BluetoothAdapter) {
 
         val data = AdvertiseData.Builder()
             .addServiceUuid(ParcelUuid(GeoRescueBleProfile.SERVICE_UUID))
-            // No device name, no service data, no manufacturer data —
+            // OEM-proof GeoRescuX marker: several stacks mangle/drop 128-bit
+            // service UUIDs in legacy advertising, so discovery ALSO carries
+            // 4 bytes of manufacturer data (reserved testing id 0xFFFF +
+            // protocol version + node marker). No personal information.
+            .addManufacturerData(
+                GeoRescueBleProfile.MANUFACTURER_ID,
+                GeoRescueBleProfile.nodeMarkerBytes()
+            )
+            // No device name, no service data beyond the marker —
             // discovery must not leak personal information.
             .setIncludeDeviceName(false)
             .setIncludeTxPowerLevel(false)

@@ -52,7 +52,16 @@ class GeoRescueBleScanner(private val adapter: BluetoothAdapter) {
             )
             return false
         }
-        val filter = ScanFilter.Builder()
+        // Two ANY-match filters: the 4-byte manufacturer marker (reliable on
+        // every OEM stack) plus the 128-bit service UUID (primary identity
+        // where the stack supports it).
+        val markerFilter = ScanFilter.Builder()
+            .setManufacturerData(
+                GeoRescueBleProfile.MANUFACTURER_ID,
+                GeoRescueBleProfile.nodeMarkerBytes()
+            )
+            .build()
+        val uuidFilter = ScanFilter.Builder()
             .setServiceUuid(ParcelUuid(GeoRescueBleProfile.SERVICE_UUID))
             .build()
         val settings = ScanSettings.Builder()
@@ -73,14 +82,18 @@ class GeoRescueBleScanner(private val adapter: BluetoothAdapter) {
                     null
                 }
                 val services = result.scanRecord?.serviceUuids?.toList() ?: emptyList()
+                val markerData = result.scanRecord?.getManufacturerSpecificData(GeoRescueBleProfile.MANUFACTURER_ID)
+                val isGeoRescuX = GeoRescueBleProfile.isGeoRescuXManufacturerData(
+                    GeoRescueBleProfile.MANUFACTURER_ID, markerData
+                ) || services.any { it.uuid == GeoRescueBleProfile.SERVICE_UUID }
                 GeoRescueBleDiagnostics.info(
                     GeoRescueBleDiagnostics.DEVICE_FOUND,
-                    "address=$address name=${name ?: "null"} rssi=${result.rssi} services=${services.size}"
+                    "address=$address name=${name ?: "null"} rssi=${result.rssi} services=${services.size} marker=${markerData != null}"
                 )
-                if (services.any { it.uuid == GeoRescueBleProfile.SERVICE_UUID }) {
+                if (isGeoRescuX) {
                     GeoRescueBleDiagnostics.info(
                         GeoRescueBleDiagnostics.GEORESCUE_DEVICE_FOUND,
-                        "address=$address rssi=${result.rssi}"
+                        "address=$address rssi=${result.rssi} via=${if (markerData != null) "marker" else "uuid"}"
                     )
                     listener.onGeoRescueDeviceFound(result.device, result.rssi, services)
                 }
@@ -96,7 +109,7 @@ class GeoRescueBleScanner(private val adapter: BluetoothAdapter) {
             }
         }
         return try {
-            leScanner.startScan(listOf(filter), settings, newCallback)
+            leScanner.startScan(listOf(markerFilter, uuidFilter), settings, newCallback)
             activeCallback = newCallback
             GeoRescueBleDiagnostics.info(
                 GeoRescueBleDiagnostics.SCAN_STARTED,

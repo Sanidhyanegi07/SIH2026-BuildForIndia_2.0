@@ -30,6 +30,23 @@ object GeoRescueBleProfile {
     /** Standard CCCD used to enable notifications on TX. */
     val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
+    /**
+     * Manufacturer id reserved for internal testing (0xFFFF) + a 2-byte
+     * GeoRescuX node marker [protocolVersion, 'G']. This is the OEM-proof
+     * discovery payload: 128-bit UUID advertising is unreliable on many
+     * manufacturer stacks, 4 bytes of manufacturer data never is.
+     */
+    const val MANUFACTURER_ID: Int = 0xFFFF
+    const val MARKER_PROTOCOL_VERSION: Byte = 0x01
+    const val MARKER_NODE_BYTE: Byte = 0x47 // 'G' for GeoRescuX
+
+    fun nodeMarkerBytes(): ByteArray = byteArrayOf(MARKER_PROTOCOL_VERSION, MARKER_NODE_BYTE)
+
+    /** True when an advertised manufacturer payload identifies a GeoRescuX node. */
+    fun isGeoRescuXManufacturerData(manufacturerId: Int, data: ByteArray?): Boolean =
+        manufacturerId == MANUFACTURER_ID && data != null && data.size >= 2 &&
+            data[0] == MARKER_PROTOCOL_VERSION && data[1] == MARKER_NODE_BYTE
+
     /** Properties of the RX characteristic: clients may write with or without response. */
     private const val RX_PROPERTIES =
         BluetoothGattCharacteristic.PROPERTY_WRITE or
