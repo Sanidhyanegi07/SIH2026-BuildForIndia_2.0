@@ -50,11 +50,16 @@ object GeoRescueBlePermissions {
 
     /**
      * Permissions that MUST be granted for BLE to start on [sdkInt].
-     * S+: the three Bluetooth permissions. Pre-S: fine location (coarse is
-     * an acceptable alternative and is checked as such).
+     * S+: the three Bluetooth permissions PLUS fine location — the manifest
+     * declares BLUETOOTH_SCAN without neverForLocation (a deliberate
+     * compatibility decision for Nearby on some OEM firmwares), so Android
+     * 12+ still withholds ALL scan results when location is denied, making
+     * GeoRescuX devices undiscoverable with no error surfaced anywhere.
+     * Pre-S: fine location (coarse is an acceptable alternative and is
+     * checked as such).
      */
     fun criticalPermissions(sdkInt: Int): List<String> = if (sdkInt >= 31) {
-        listOf(BLUETOOTH_SCAN, BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT)
+        listOf(BLUETOOTH_SCAN, BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION)
     } else {
         listOf(ACCESS_FINE_LOCATION)
     }
