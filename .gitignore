@@ -20,3 +20,4 @@ output/*/*.map
 tools/osmosis/
 tools/osmosis.zip
 tools/libs/
+local.properties
