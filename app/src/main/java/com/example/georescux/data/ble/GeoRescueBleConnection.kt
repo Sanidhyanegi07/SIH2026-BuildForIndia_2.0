@@ -322,18 +322,21 @@ class GeoRescueBleConnection(
         }
         writeInProgress = true
         try {
-            val writeType =
-                if (rx.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0) {
-                    BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                } else {
-                    BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                }
+            // ALWAYS write-with-response: several OEM stacks never invoke
+            // onCharacteristicWrite for WRITE_TYPE_NO_RESPONSE, which jams
+            // the chunk queue after the first write (the peer then receives
+            // an unterminated frame and silently drops the packet). The
+            // with-response path guarantees one callback per chunk, keeping
+            // the pump flowing and the frame complete on the receiver.
+            val writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             val initiated: Boolean =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     gattLocal.writeCharacteristic(rx, next, writeType) == BluetoothGatt.GATT_SUCCESS
                 } else {
                     @Suppress("DEPRECATION")
                     rx.value = next
+                    @Suppress("DEPRECATION")
+                    rx.writeType = writeType
                     @Suppress("DEPRECATION")
                     gattLocal.writeCharacteristic(rx)
                 }
