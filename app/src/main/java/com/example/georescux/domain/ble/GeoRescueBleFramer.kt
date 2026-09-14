@@ -33,19 +33,29 @@ class GeoRescueBleFramer(private val maxFrameBytes: Int = DEFAULT_MAX_FRAME_BYTE
 
     /**
      * Feeds one received chunk; returns the FIRST complete frame's JSON
-     * when its terminator is in the buffer, otherwise null. Later complete
-     * frames stay buffered and are emitted by subsequent feeds, in order.
+     * when its terminator is in the buffer, otherwise null. Subsequent complete
+     * frames buffered can be retrieved immediately via [nextFrame].
      *
      * Guard: if garbage without a terminator exceeds [maxFrameBytes], the
      * buffer is discarded (bounded memory, attacker-safe).
      */
     fun feed(chunk: ByteArray): String? {
-        if (chunk.isEmpty()) return null
-        buffer.write(chunk)
-        if (buffer.size() > maxFrameBytes) {
-            reset()
-            return null
+        if (chunk.isNotEmpty()) {
+            buffer.write(chunk)
+            if (buffer.size() > maxFrameBytes) {
+                reset()
+                return null
+            }
         }
+        return nextFrame()
+    }
+
+    /**
+     * Extracts and returns the next complete frame from the internal buffer,
+     * or null if no complete frame is present. Call in a loop after [feed]
+     * to drain any additional frames delivered in the same chunk.
+     */
+    fun nextFrame(): String? {
         val bytes = buffer.toByteArray()
         for (i in bytes.indices) {
             if (bytes[i] == FRAME_TERMINATOR) {
@@ -57,6 +67,17 @@ class GeoRescueBleFramer(private val maxFrameBytes: Int = DEFAULT_MAX_FRAME_BYTE
             }
         }
         return null
+    }
+
+    /** Feeds a chunk and drains all complete frames available in order. */
+    fun feedAll(chunk: ByteArray): List<String> {
+        val frames = mutableListOf<String>()
+        var frame = feed(chunk)
+        while (frame != null) {
+            frames.add(frame)
+            frame = nextFrame()
+        }
+        return frames
     }
 
     /** Clears partial state (connection closed mid-frame). */

@@ -4,6 +4,8 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelUuid
 import com.example.georescux.domain.ble.GeoRescueBleConnectionStateMachine
 import com.example.georescux.domain.ble.GeoRescueBleDiagnostics
@@ -125,6 +127,8 @@ class GeoRescueBleManager(
     private val serverPeers = HashMap<String, ServerPeer>()
     private val discovered = LinkedHashMap<String, DiscoveredDevice>()
     private val packetListeners = Collections.synchronizedList(mutableListOf<PacketListener>())
+    private val connectFallbacks = HashMap<String, Runnable>()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     /** Whether discovery should trigger automatic connection attempts (relay + diagnostics default: on). */
     @Volatile
@@ -177,7 +181,7 @@ class GeoRescueBleManager(
             GeoRescueBleDiagnostics.error(GeoRescueBleDiagnostics.BLUETOOTH_DISABLED)
             return false
         }
-        val newAdvertiser = GeoRescueBleAdvertiser(btAdapter)
+        val newAdvertiser = GeoRescueBleAdvertiser(btAdapter, (selfDeviceId.hashCode() and 0xFFFF).toShort())
         val newScanner = GeoRescueBleScanner(btAdapter)
         if (newScanner.isSupported()) {
             GeoRescueBleDiagnostics.info(GeoRescueBleDiagnostics.SCANNER_CREATED)
@@ -295,8 +299,13 @@ class GeoRescueBleManager(
             scanner
         } ?: return false
         val started = scan.startScan(object : GeoRescueBleScanner.ScanListener {
-            override fun onGeoRescueDeviceFound(device: BluetoothDevice, rssi: Int, advertisedServices: List<ParcelUuid>) {
-                onGeoRescueDeviceDiscovered(device, rssi)
+            override fun onGeoRescueDeviceFound(
+                device: BluetoothDevice,
+                rssi: Int,
+                advertisedServices: List<ParcelUuid>,
+                peerToken: Short?,
+            ) {
+                onGeoRescueDeviceDiscovered(device, rssi, peerToken)
             }
 
             override fun onScanFailed(errorCode: Int) {
@@ -317,7 +326,7 @@ class GeoRescueBleManager(
         synchronized(lock) { scanner }?.stopScan()
     }
 
-    private fun onGeoRescueDeviceDiscovered(device: BluetoothDevice, rssi: Int) {
+    private fun onGeoRescueDeviceDiscovered(device: BluetoothDevice, rssi: Int, peerToken: Short? = null) {
         GeoRescueBleDiagnostics.info(
             GeoRescueBleDiagnostics.PEER_FOUND,
             "address=${device.address} rssi=$rssi"
@@ -333,7 +342,48 @@ class GeoRescueBleManager(
         // Auto-connect policy (opportunistic relay): dial a discovered
         // GeoRescuX node unless a link already exists in either role.
         if (autoConnectEnabled) {
+            val myToken = (selfDeviceId.hashCode() and 0xFFFF).toShort()
+            val myTokenUnsigned = myToken.toInt() and 0xFFFF
+            val peerTokenUnsigned = peerToken?.let { it.toInt() and 0xFFFF }
+
+            // Deterministic tie-break: the device with higher token dials client;
+            // the device with lower token yields and waits for incoming server connection.
+            if (peerTokenUnsigned != null && myTokenUnsigned < peerTokenUnsigned) {
+                GeoRescueBleDiagnostics.info(
+                    GeoRescueBleDiagnostics.PEER_FOUND,
+                    "address=${device.address} role=YIELD_SERVER myToken=$myTokenUnsigned peerToken=$peerTokenUnsigned"
+                )
+                scheduleConnectFallback(device.address)
+                return
+            }
+
+            cancelConnectFallback(device.address)
             connectTo(device.address)
+        }
+    }
+
+    private fun scheduleConnectFallback(address: String) {
+        synchronized(lock) {
+            if (connectFallbacks.containsKey(address)) return
+            val runnable = Runnable {
+                synchronized(lock) {
+                    connectFallbacks.remove(address)
+                    if (autoConnectEnabled) {
+                        val serverEntry = serverPeers[address]
+                        if (serverEntry == null || !isLive(serverEntry.stateMachine.state)) {
+                            connectTo(address)
+                        }
+                    }
+                }
+            }
+            connectFallbacks[address] = runnable
+            mainHandler.postDelayed(runnable, 2500L)
+        }
+    }
+
+    private fun cancelConnectFallback(address: String) {
+        synchronized(lock) {
+            connectFallbacks.remove(address)?.let { mainHandler.removeCallbacks(it) }
         }
     }
 
@@ -453,9 +503,19 @@ class GeoRescueBleManager(
             GeoRescueBleDiagnostics.GATT_CONNECTING,
             "role=SERVER address=${device.address}"
         )
+        cancelConnectFallback(device.address)
         synchronized(lock) {
             serverPeers.getOrPut(device.address) { ServerPeer(device.address) }
                 .stateMachine.transitionTo(GeoRescueBleState.CONNECTED)
+            val clientEntry = clientPeers[device.address]
+            if (clientEntry != null && clientEntry.stateMachine.state != GeoRescueBleState.READY) {
+                GeoRescueBleDiagnostics.info(
+                    GeoRescueBleDiagnostics.DISCONNECTED,
+                    "role=CLIENT_YIELD address=${device.address} reason=SERVER_PEER_CONNECTED"
+                )
+                clientEntry.connection?.disconnect()
+                clientPeers.remove(device.address)
+            }
         }
     }
 
@@ -464,6 +524,7 @@ class GeoRescueBleManager(
             GeoRescueBleDiagnostics.GATT_DISCONNECTED,
             "role=SERVER address=${device.address}"
         )
+        cancelConnectFallback(device.address)
         synchronized(lock) {
             serverPeers.remove(device.address)?.stateMachine?.transitionTo(GeoRescueBleState.DISCONNECTED)
             serverFramers.remove(device.address)
@@ -498,9 +559,10 @@ class GeoRescueBleManager(
         val framer = synchronized(lock) {
             serverFramers.getOrPut(device.address) { GeoRescueBleFramer() }
         }
-        val frame = framer.feed(bytes)
-        if (frame != null) {
+        var frame = framer.feed(bytes)
+        while (frame != null) {
             ingestFrame(frame, fromPeerId = device.address)
+            frame = framer.nextFrame()
         }
     }
 
@@ -628,14 +690,14 @@ class GeoRescueBleManager(
 
     internal fun availablePeerIds(): List<String> {
         synchronized(lock) {
-            val ready = mutableListOf<String>()
+            val ready = LinkedHashSet<String>()
             clientPeers.values.forEach { entry ->
                 if (entry.stateMachine.state == GeoRescueBleState.READY) ready.add(entry.address)
             }
             serverPeers.values.forEach { entry ->
                 if (entry.stateMachine.state == GeoRescueBleState.READY) ready.add(entry.address)
             }
-            return ready
+            return ready.toList()
         }
     }
 
@@ -756,6 +818,8 @@ class GeoRescueBleManager(
     /** Graceful shutdown (Application.onTerminate / diagnostics "Reset"). */
     fun shutdown() {
         synchronized(lock) {
+            connectFallbacks.values.forEach { mainHandler.removeCallbacks(it) }
+            connectFallbacks.clear()
             stopScanning()
             stopAdvertising()
             clientPeers.values.forEach { it.connection?.disconnect() }

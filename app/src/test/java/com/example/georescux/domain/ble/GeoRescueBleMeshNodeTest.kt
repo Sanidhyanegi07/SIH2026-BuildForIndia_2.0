@@ -298,5 +298,19 @@ class GeoRescueBleMeshNodeTest {
         node.publish(localPacket)
         assertNull(deliveredPeer)
     }
+
+    @Test
+    fun `terminal hop packet with ttl 1 is not re-propagated to late-joining peer`() {
+        val node = buildNode(selfDeviceId = "DEVICE_B")
+        val packet = sosPacket(packetId = "GRX-terminal", ttl = 1)
+        val decision = node.ingest(packet.serialize(), "PEER_1")
+        assertEquals(GeoRescueBleRelayDecision.ACCEPTED_LOCAL, decision)
+
+        // Peer 2 connects later:
+        sink.reachable.add("PEER_2")
+        val delivered = node.onPeerReady("PEER_2")
+        assertEquals(0, delivered)
+        assertTrue(sink.sent.isEmpty())
+    }
 }
 

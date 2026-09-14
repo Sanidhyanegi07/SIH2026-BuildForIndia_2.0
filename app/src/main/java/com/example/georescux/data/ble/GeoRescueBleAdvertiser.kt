@@ -19,7 +19,10 @@ import com.example.georescux.domain.ble.GeoRescueBleDiagnostics
  * modern AdvertisingSet API adds complexity this subsystem does not need.
  */
 @Suppress("DEPRECATION")
-class GeoRescueBleAdvertiser(adapter: BluetoothAdapter) {
+class GeoRescueBleAdvertiser(
+    adapter: BluetoothAdapter,
+    private val nodeToken: Short = 0,
+) {
 
     interface AdvertisingListener {
         fun onAdvertisingStarted()
@@ -71,7 +74,7 @@ class GeoRescueBleAdvertiser(adapter: BluetoothAdapter) {
             // protocol version + node marker). No personal information.
             .addManufacturerData(
                 GeoRescueBleProfile.MANUFACTURER_ID,
-                GeoRescueBleProfile.nodeMarkerBytes()
+                GeoRescueBleProfile.nodeMarkerBytes(nodeToken)
             )
             // No device name, no service data beyond the marker —
             // discovery must not leak personal information.

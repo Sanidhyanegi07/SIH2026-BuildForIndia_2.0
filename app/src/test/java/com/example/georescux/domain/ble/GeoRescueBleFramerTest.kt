@@ -90,4 +90,23 @@ class GeoRescueBleFramerTest {
         assertEquals(0, receiver.pendingBytes)
         assertEquals("new", receiver.feed("new\n".toByteArray()))
     }
+
+    @Test
+    fun `multiple complete frames in single chunk are drained via nextFrame without new bytes`() {
+        val receiver = GeoRescueBleFramer()
+        val first = receiver.feed("frameA\nframeB\nframeC\n".toByteArray())
+        assertEquals("frameA", first)
+        assertEquals("frameB", receiver.nextFrame())
+        assertEquals("frameC", receiver.nextFrame())
+        assertNull(receiver.nextFrame())
+    }
+
+    @Test
+    fun `feedAll drains all complete frames immediately`() {
+        val receiver = GeoRescueBleFramer()
+        val frames = receiver.feedAll("sos1\nsos2\npartial".toByteArray())
+        assertEquals(listOf("sos1", "sos2"), frames)
+        assertEquals(7, receiver.pendingBytes)
+        assertEquals("partial-end", receiver.feed("-end\n".toByteArray()))
+    }
 }

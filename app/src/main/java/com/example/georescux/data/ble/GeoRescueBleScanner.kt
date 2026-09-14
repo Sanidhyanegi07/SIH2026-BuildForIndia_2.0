@@ -24,7 +24,12 @@ class GeoRescueBleScanner(private val adapter: BluetoothAdapter) {
 
     interface ScanListener {
         /** A confirmed GeoRescuX node was seen in the air. */
-        fun onGeoRescueDeviceFound(device: BluetoothDevice, rssi: Int, advertisedServices: List<ParcelUuid>)
+        fun onGeoRescueDeviceFound(
+            device: BluetoothDevice,
+            rssi: Int,
+            advertisedServices: List<ParcelUuid>,
+            peerToken: Short? = null,
+        )
 
         fun onScanFailed(errorCode: Int)
     }
@@ -52,13 +57,14 @@ class GeoRescueBleScanner(private val adapter: BluetoothAdapter) {
             )
             return false
         }
-        // Two ANY-match filters: the 4-byte manufacturer marker (reliable on
+        // Two ANY-match filters: the manufacturer marker prefix (reliable on
         // every OEM stack) plus the 128-bit service UUID (primary identity
         // where the stack supports it).
         val markerFilter = ScanFilter.Builder()
             .setManufacturerData(
                 GeoRescueBleProfile.MANUFACTURER_ID,
-                GeoRescueBleProfile.nodeMarkerBytes()
+                byteArrayOf(GeoRescueBleProfile.MARKER_PROTOCOL_VERSION, GeoRescueBleProfile.MARKER_NODE_BYTE),
+                byteArrayOf(0xFF.toByte(), 0xFF.toByte())
             )
             .build()
         val uuidFilter = ScanFilter.Builder()
@@ -83,6 +89,9 @@ class GeoRescueBleScanner(private val adapter: BluetoothAdapter) {
                 }
                 val services = result.scanRecord?.serviceUuids?.toList() ?: emptyList()
                 val markerData = result.scanRecord?.getManufacturerSpecificData(GeoRescueBleProfile.MANUFACTURER_ID)
+                val peerToken = if (markerData != null && markerData.size >= 4) {
+                    (((markerData[2].toInt() and 0xFF) shl 8) or (markerData[3].toInt() and 0xFF)).toShort()
+                } else null
                 val isGeoRescuX = GeoRescueBleProfile.isGeoRescuXManufacturerData(
                     GeoRescueBleProfile.MANUFACTURER_ID, markerData
                 ) || services.any { it.uuid == GeoRescueBleProfile.SERVICE_UUID }
@@ -95,7 +104,7 @@ class GeoRescueBleScanner(private val adapter: BluetoothAdapter) {
                         GeoRescueBleDiagnostics.GEORESCUE_DEVICE_FOUND,
                         "address=$address rssi=${result.rssi} via=${if (markerData != null) "marker" else "uuid"}"
                     )
-                    listener.onGeoRescueDeviceFound(result.device, result.rssi, services)
+                    listener.onGeoRescueDeviceFound(result.device, result.rssi, services, peerToken)
                 }
             }
 

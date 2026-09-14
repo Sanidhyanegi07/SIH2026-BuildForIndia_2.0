@@ -194,7 +194,6 @@ class GeoRescueBleMeshNode(
         }
 
         seenStore.saveSeenPacketId(packet.packetId)
-        sentJsons[packet.packetId] = json
         fromPeerId?.let { sender ->
             sentPeers.getOrPut(packet.packetId) { HashSet() }.add(sender)
         }
@@ -206,6 +205,7 @@ class GeoRescueBleMeshNode(
         // Strict last-hop rule: a packet whose decrement would reach 0 stops
         // here — TTL=5 crosses exactly 5 links, no relay can loop a packet.
         if (nextHop.ttl <= 0) return GeoRescueBleRelayDecision.ACCEPTED_LOCAL
+        sentJsons[packet.packetId] = nextHop.serialize()
         return forward(nextHop)
     }
 
@@ -219,10 +219,18 @@ class GeoRescueBleMeshNode(
         var delivered = 0
         // Entries explicitly failed for this peer earlier.
         val peerPending = outbox.remove(peerId) ?: emptyList()
-        // Restored/never-attempted entries live under the wildcard key.
-        val anyPeer = outbox.remove(OUTBOX_ANY_PEER) ?: emptyList()
-        (peerPending + anyPeer).forEach { queued ->
+        peerPending.forEach { queued ->
             if (tryDeliver(peerId, queued)) delivered++
+        }
+        // Restored/never-attempted entries live under the wildcard key.
+        val anyPeer = synchronized(outbox) { outbox[OUTBOX_ANY_PEER]?.toList() ?: emptyList() }
+        anyPeer.forEach { queued ->
+            if (tryDeliver(peerId, queued)) {
+                delivered++
+                synchronized(outbox) {
+                    outbox[OUTBOX_ANY_PEER]?.remove(queued)
+                }
+            }
         }
 
         // Propagate still-fresh packets the peer has not seen yet.

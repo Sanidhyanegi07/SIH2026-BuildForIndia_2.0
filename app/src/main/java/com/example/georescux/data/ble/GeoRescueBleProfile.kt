@@ -40,7 +40,12 @@ object GeoRescueBleProfile {
     const val MARKER_PROTOCOL_VERSION: Byte = 0x01
     const val MARKER_NODE_BYTE: Byte = 0x47 // 'G' for GeoRescuX
 
-    fun nodeMarkerBytes(): ByteArray = byteArrayOf(MARKER_PROTOCOL_VERSION, MARKER_NODE_BYTE)
+    fun nodeMarkerBytes(nodeToken: Short = 0): ByteArray = byteArrayOf(
+        MARKER_PROTOCOL_VERSION,
+        MARKER_NODE_BYTE,
+        (nodeToken.toInt() ushr 8).toByte(),
+        (nodeToken.toInt() and 0xFF).toByte(),
+    )
 
     /** True when an advertised manufacturer payload identifies a GeoRescuX node. */
     fun isGeoRescuXManufacturerData(manufacturerId: Int, data: ByteArray?): Boolean =

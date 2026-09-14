@@ -366,13 +366,14 @@ class GeoRescueBleConnection(
 
     private fun handleIncomingNotification(characteristic: BluetoothGattCharacteristic, value: ByteArray) {
         if (characteristic.uuid != GeoRescueBleProfile.TX_CHARACTERISTIC_UUID) return
-        val frame = framer.feed(value)
-        if (frame != null) {
+        var frame = framer.feed(value)
+        while (frame != null) {
             GeoRescueBleDiagnostics.info(
                 GeoRescueBleDiagnostics.DATA_RECEIVED,
                 "role=CLIENT address=$deviceAddress frameChars=${frame.length}"
             )
             listener.onBytesReceived(this@GeoRescueBleConnection, frame.toByteArray(Charsets.UTF_8))
+            frame = framer.nextFrame()
         }
     }
 
