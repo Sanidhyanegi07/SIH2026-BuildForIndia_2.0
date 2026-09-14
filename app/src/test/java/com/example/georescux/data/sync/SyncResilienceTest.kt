@@ -5,6 +5,7 @@ import com.example.georescux.domain.repository.SosRepository
 import com.example.georescux.domain.sos.SosEmergency
 import com.example.georescux.domain.sos.SosLocation
 import com.example.georescux.domain.sos.SosLocationStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -111,6 +112,7 @@ class SyncResilienceTest {
             authRepository = auth,
             cloudDataSource = cloud,
             syncStateStore = syncStore,
+            backupDispatcher = Dispatchers.Unconfined,
         )
 
         syncingRepo.startEmergency("sos_1", 1_000_000L)
@@ -136,6 +138,7 @@ class SyncResilienceTest {
             authRepository = auth,
             cloudDataSource = cloud,
             syncStateStore = syncStore,
+            backupDispatcher = Dispatchers.Unconfined,
         )
 
         syncingRepo.startEmergency("sos_1", 1_000_000L)
@@ -166,6 +169,7 @@ class SyncResilienceTest {
             authRepository = auth,
             cloudDataSource = cloud,
             syncStateStore = syncStore,
+            backupDispatcher = Dispatchers.Unconfined,
         )
 
         syncingRepo.startEmergency("sos_1", 1_000_000L)

@@ -131,7 +131,11 @@ class SyncingSosRepository(
 
     private fun scheduleBackup(record: SosEmergency) {
         // Signed-out users skip uploads entirely.
-        if (authRepository.currentUserId == null) return
+        val uid = authRepository.currentUserId ?: return
+        // Record the retry obligation before handing work to the background
+        // dispatcher. If the process dies before that coroutine starts, the
+        // local SOS remains eligible for the next durable sync trigger.
+        syncStateStore.setSosAlertPending(uid, record.id, pending = true)
         backupScope.launch {
             try {
                 tryUpload(record)
