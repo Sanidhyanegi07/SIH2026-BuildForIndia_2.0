@@ -46,6 +46,9 @@ class GeoRescueBleService(
 
         /** Fragmented open/open fails — surfaced for the failure classifier. */
         fun onServerOpenFailed(status: Int)
+
+        /** Android has finished registering the custom GATT service. */
+        fun onServerServiceReady()
     }
 
     var gattServer: BluetoothGattServer? = null
@@ -53,11 +56,20 @@ class GeoRescueBleService(
 
     /** Clients that enabled notifications on TX (device address -> device). */
     private val subscribedClients = HashMap<String, BluetoothDevice>()
+    /** Negotiated ATT MTU per subscribed client. Falls back to the BLE minimum. */
+    private val clientMtu = HashMap<String, Int>()
 
     private var listener: GattServerListener? = null
 
     /** Address-keyed view for the manager/sink. */
     fun subscribedClientAddresses(): Set<String> = subscribedClients.keys.toSet()
+
+    /** Maximum notification value length currently safe for this client. */
+    fun notificationPayloadLimit(address: String): Int = synchronized(clientMtu) {
+        // ATT notifications reserve three bytes for the ATT header. The
+        // default MTU is 23, so 20 bytes is always safe before negotiation.
+        ((clientMtu[address] ?: DEFAULT_ATT_MTU) - ATT_HEADER_BYTES).coerceAtLeast(MIN_PAYLOAD_BYTES)
+    }
 
     /**
      * Opens the GATT server and registers the GeoRescuX service. Returns
@@ -88,9 +100,18 @@ class GeoRescueBleService(
             return null
         }
         return try {
-            server.addService(GeoRescueBleProfile.buildService())
             gattServer = server
             this.listener = listener
+            if (!server.addService(GeoRescueBleProfile.buildService())) {
+                gattServer = null
+                this.listener = null
+                server.close()
+                GeoRescueBleDiagnostics.error(
+                    GeoRescueBleDiagnostics.BLE_INIT_FAILED,
+                    "component=GATT_SERVER code=ADD_SERVICE_REJECTED"
+                )
+                return null
+            }
             server
         } catch (e: Exception) {
             try {
@@ -152,6 +173,7 @@ class GeoRescueBleService(
         }
         gattServer = null
         synchronized(subscribedClients) { subscribedClients.clear() }
+        synchronized(clientMtu) { clientMtu.clear() }
         listener = null
     }
 
@@ -171,7 +193,18 @@ class GeoRescueBleService(
                     "role=SERVER address=$address status=$status"
                 )
                 synchronized(subscribedClients) { subscribedClients.remove(address) }
+                synchronized(clientMtu) { clientMtu.remove(address) }
                 listener?.onServerDeviceDisconnected(device)
+            }
+        }
+
+        override fun onMtuChanged(device: BluetoothDevice, mtu: Int) {
+            if (mtu >= DEFAULT_ATT_MTU) {
+                synchronized(clientMtu) { clientMtu[device.address] = mtu }
+                GeoRescueBleDiagnostics.info(
+                    GeoRescueBleDiagnostics.MTU_NEGOTIATED,
+                    "role=SERVER address=${device.address} mtu=$mtu"
+                )
             }
         }
 
@@ -228,6 +261,7 @@ class GeoRescueBleService(
                     listener?.onClientSubscribed(device)
                 } else {
                     synchronized(subscribedClients) { subscribedClients.remove(device.address) }
+                    synchronized(clientMtu) { clientMtu.remove(device.address) }
                     listener?.onClientUnsubscribed(device)
                 }
             }
@@ -254,6 +288,7 @@ class GeoRescueBleService(
                     GeoRescueBleDiagnostics.GEORESCUE_SERVICE_FOUND,
                     "role=SERVER registered=${service.uuid}"
                 )
+                listener?.onServerServiceReady()
             } else {
                 GeoRescueBleDiagnostics.error(
                     GeoRescueBleDiagnostics.BLE_INIT_FAILED,
@@ -270,5 +305,11 @@ class GeoRescueBleService(
                 )
             }
         }
+    }
+
+    private companion object {
+        const val DEFAULT_ATT_MTU = 23
+        const val ATT_HEADER_BYTES = 3
+        const val MIN_PAYLOAD_BYTES = 20
     }
 }

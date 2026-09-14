@@ -201,9 +201,6 @@ class BleDiagnosticsActivity : AppCompatActivity() {
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_ADVERTISE,
                 Manifest.permission.BLUETOOTH_CONNECT,
-                // Without neverForLocation in the manifest, Android 12+
-                // silently withholds scan results unless location is granted.
-                Manifest.permission.ACCESS_FINE_LOCATION,
             )
         } else {
             arrayOf(

@@ -38,28 +38,24 @@ object GeoRescueBlePermissions {
 
     /**
      * The runtime permissions the subsystem requests for a given SDK level.
-     * On S+ location is included only as a compatibility fallback for OEM
-     * firmwares that still gate BLE scans behind it (requested, never fatal
-     * when denied on S+).
+     * On S+ the Bluetooth runtime permissions are sufficient for raw BLE.
+     * Location remains a separate app permission for SOS positioning.
      */
     fun requiredRuntimePermissions(sdkInt: Int): List<String> = if (sdkInt >= 31) {
-        listOf(BLUETOOTH_SCAN, BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION)
+        listOf(BLUETOOTH_SCAN, BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT)
     } else {
         listOf(ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION)
     }
 
     /**
      * Permissions that MUST be granted for BLE to start on [sdkInt].
-     * S+: the three Bluetooth permissions PLUS fine location — the manifest
-     * declares BLUETOOTH_SCAN without neverForLocation (a deliberate
-     * compatibility decision for Nearby on some OEM firmwares), so Android
-     * 12+ still withholds ALL scan results when location is denied, making
-     * GeoRescuX devices undiscoverable with no error surfaced anywhere.
+     * S+: the three Bluetooth permissions. Android's Nearby Devices runtime
+     * permission group does not require a location grant for raw BLE scans.
      * Pre-S: fine location (coarse is an acceptable alternative and is
      * checked as such).
      */
     fun criticalPermissions(sdkInt: Int): List<String> = if (sdkInt >= 31) {
-        listOf(BLUETOOTH_SCAN, BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION)
+        listOf(BLUETOOTH_SCAN, BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT)
     } else {
         listOf(ACCESS_FINE_LOCATION)
     }

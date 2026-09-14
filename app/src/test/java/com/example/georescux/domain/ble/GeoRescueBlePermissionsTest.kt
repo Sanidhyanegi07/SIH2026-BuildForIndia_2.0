@@ -34,24 +34,19 @@ class GeoRescueBlePermissionsTest {
         assertEquals(GeoRescueBlePermissions.BlePermissionState.DENIED, report.connect)
         assertEquals(GeoRescueBlePermissions.BlePermissionState.DENIED, report.advertise)
         assertFalse(report.allRequiredGranted)
-        // Scan + advertise + connect + fine location (manifest declares scan
-        // without neverForLocation, so S+ firmware gates results on location).
-        assertEquals(4, report.missingRuntimePermissions.size)
+        assertEquals(3, report.missingRuntimePermissions.size)
     }
 
     @Test
-    fun `location is critical on S+ because scan results are withheld without it`() {
+    fun `location is not a BLE startup requirement on S+`() {
         val grantedButLocation = grantedSet(
             GeoRescueBlePermissions.BLUETOOTH_SCAN,
             GeoRescueBlePermissions.BLUETOOTH_ADVERTISE,
             GeoRescueBlePermissions.BLUETOOTH_CONNECT,
         )
         val report = GeoRescueBlePermissions.report(33, grantedButLocation)
-        assertFalse(report.allRequiredGranted)
-        assertEquals(
-            listOf(GeoRescueBlePermissions.ACCESS_FINE_LOCATION),
-            report.missingRuntimePermissions
-        )
+        assertTrue(report.allRequiredGranted)
+        assertTrue(report.missingRuntimePermissions.isEmpty())
     }
 
     @Test

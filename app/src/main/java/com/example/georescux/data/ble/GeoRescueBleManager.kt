@@ -118,6 +118,8 @@ class GeoRescueBleManager(
     private var advertiser: GeoRescueBleAdvertiser? = null
     private var scanner: GeoRescueBleScanner? = null
     private var gattService: GeoRescueBleService? = null
+    private var advertisingRequested = false
+    private var scanningRequested = false
     private val serverFramers = HashMap<String, GeoRescueBleFramer>()
     private val clientPeers = HashMap<String, ClientPeer>()
     private val serverPeers = HashMap<String, ServerPeer>()
@@ -203,7 +205,27 @@ class GeoRescueBleManager(
             }
 
             override fun onServerOpenFailed(status: Int) {
+                synchronized(lock) { serverServiceRegistered = false }
                 setLastError("GATT server open failed: status=$status")
+            }
+
+            override fun onServerServiceReady() {
+                val resumeAdvertising: Boolean
+                val resumeScanning: Boolean
+                synchronized(lock) {
+                    serverServiceRegistered = true
+                    resumeAdvertising = advertisingRequested
+                    resumeScanning = scanningRequested
+                }
+                GeoRescueBleDiagnostics.info(
+                    GeoRescueBleDiagnostics.GEORESCUE_SERVICE_FOUND,
+                    "role=SERVER state=READY"
+                )
+                // Do not expose a connectable advertisement until the peer
+                // can actually discover this service. Otherwise the first
+                // connection often fails with GEORESCUX_SERVICE_MISSING.
+                if (resumeAdvertising) startAdvertising()
+                if (resumeScanning) startScanning()
             }
         })
         if (opened == null) {
@@ -213,7 +235,7 @@ class GeoRescueBleManager(
             advertiser = newAdvertiser
             scanner = newScanner
             gattService = service
-            serverServiceRegistered = true
+            serverServiceRegistered = false
             initialized = true
         }
         GeoRescueBleDiagnostics.info(
@@ -230,7 +252,17 @@ class GeoRescueBleManager(
     // --- Phase 3: advertising ---
 
     fun startAdvertising(): Boolean {
-        val adv = synchronized(lock) { advertiser } ?: return false
+        val adv = synchronized(lock) {
+            advertisingRequested = true
+            if (!serverServiceRegistered) {
+                GeoRescueBleDiagnostics.info(
+                    GeoRescueBleDiagnostics.ADVERTISING_STARTED,
+                    "state=QUEUED_WAITING_FOR_GATT_SERVICE"
+                )
+                return true
+            }
+            advertiser
+        } ?: return false
         return adv.startAdvertising(object : GeoRescueBleAdvertiser.AdvertisingListener {
             override fun onAdvertisingStarted() {
                 GeoRescueBleDiagnostics.info(GeoRescueBleDiagnostics.ADVERTISING_STARTED, "node=$selfDeviceId")
@@ -244,13 +276,24 @@ class GeoRescueBleManager(
     }
 
     fun stopAdvertising() {
+        synchronized(lock) { advertisingRequested = false }
         synchronized(lock) { advertiser }?.stopAdvertising()
     }
 
     // --- Phase 4: scanning ---
 
     fun startScanning(): Boolean {
-        val scan = synchronized(lock) { scanner } ?: return false
+        val scan = synchronized(lock) {
+            scanningRequested = true
+            if (!serverServiceRegistered) {
+                GeoRescueBleDiagnostics.info(
+                    GeoRescueBleDiagnostics.SCANNING_STARTED,
+                    "state=QUEUED_WAITING_FOR_GATT_SERVICE"
+                )
+                return true
+            }
+            scanner
+        } ?: return false
         val started = scan.startScan(object : GeoRescueBleScanner.ScanListener {
             override fun onGeoRescueDeviceFound(device: BluetoothDevice, rssi: Int, advertisedServices: List<ParcelUuid>) {
                 onGeoRescueDeviceDiscovered(device, rssi)
@@ -270,6 +313,7 @@ class GeoRescueBleManager(
     }
 
     fun stopScanning() {
+        synchronized(lock) { scanningRequested = false }
         synchronized(lock) { scanner }?.stopScan()
     }
 
@@ -623,7 +667,8 @@ class GeoRescueBleManager(
      */
     private fun notifyFrameToServerClient(entry: ServerPeer, frameBytes: ByteArray): Boolean {
         val service = gattService ?: return false
-        val chunks = GeoRescueBleFramer().chunksFor(frameBytes, SERVER_NOTIFY_CHUNK_BYTES)
+        val payloadLimit = service.notificationPayloadLimit(entry.address)
+        val chunks = GeoRescueBleFramer().chunksFor(frameBytes, payloadLimit)
         chunks.forEach { chunk ->
             val ok = service.notifyTo(entry.address, chunk)
             if (!ok) {
@@ -636,7 +681,7 @@ class GeoRescueBleManager(
         }
         GeoRescueBleDiagnostics.verbose(
             GeoRescueBleDiagnostics.WRITE_SUCCESS,
-            "role=SERVER_NOTIFY address=${entry.address} chunks=${chunks.size}"
+            "role=SERVER_NOTIFY address=${entry.address} chunks=${chunks.size} mtuPayload=$payloadLimit"
         )
         return true
     }
@@ -721,6 +766,9 @@ class GeoRescueBleManager(
             gattService = null
             advertiser = null
             scanner = null
+            advertisingRequested = false
+            scanningRequested = false
+            serverServiceRegistered = false
             initialized = false
         }
     }
@@ -742,12 +790,5 @@ class GeoRescueBleManager(
     private companion object {
         const val MAX_DISCOVERED_TRACKED = 20
 
-        /**
-         * Conservative notify chunk size: fits any client that negotiated
-         * MTU >= 188 (our own client requests 247). Values larger than the
-         * peer's MTU would be silently truncated by the stack, corrupting
-         * the frame — chunking keeps every notify complete.
-         */
-        const val SERVER_NOTIFY_CHUNK_BYTES = 180
     }
 }
