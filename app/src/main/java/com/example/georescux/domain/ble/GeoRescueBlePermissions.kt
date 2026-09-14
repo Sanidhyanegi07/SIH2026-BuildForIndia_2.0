@@ -65,9 +65,8 @@ object GeoRescueBlePermissions {
 
     /**
      * Builds the full report for the diagnostics screen. On S+, location is
-     * reported as SATISFIED unless explicitly denied (the manifest declares
-     * scan as neverForLocation, so it is informational). Pre-S, fine-or-coarse
-     * location is REQUIRED for scanning.
+     * diagnostic-only and does not block raw BLE startup. Pre-S, fine-or-coarse
+     * location is required for scanning.
      */
     fun report(sdkInt: Int, isGranted: (String) -> Boolean): BlePermissionReport {
         fun stateOf(permission: String): BlePermissionState =
