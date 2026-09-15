@@ -16,6 +16,8 @@ import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.auth.UserRole
 import com.example.georescux.data.maps.MapRegionCatalog
+import com.example.georescux.domain.admin.EmergencyPriorityCalculator
+import com.example.georescux.domain.admin.EmergencyVerifiable
 import com.example.georescux.domain.routing.RoadHazard
 import com.example.georescux.ui.auth.LoginActivity
 import com.google.firebase.database.DataSnapshot
@@ -150,7 +152,10 @@ class AdminDashboardActivity : AppCompatActivity() {
 
                 for (userSnap in snapshot.children) {
                     val uid = userSnap.key ?: "unknown"
+                    val isVerified = userSnap.child("isVerified").getValue(Boolean::class.java) ?: false
                     for (alertSnap in userSnap.children) {
+                        if (alertSnap.key == "isVerified") continue
+                        
                         totalCount++
                         val startedAtMs = alertSnap.child("startedAtMs").getValue(Long::class.java) ?: 0L
                         val stoppedAtMs = alertSnap.child("stoppedAtMs").getValue(Long::class.java)
@@ -180,14 +185,18 @@ class AdminDashboardActivity : AppCompatActivity() {
                                 longitude = lng,
                                 accuracy = acc,
                                 provider = provider,
-                                note = note
+                                note = note,
+                                isVerified = isVerified
                             )
                         )
                     }
                 }
 
-                findViewById<TextView>(R.id.textViewActiveEmergenciesCount).text = activeCount.toString()
-                findViewById<TextView>(R.id.textViewTotalUsersCount).text = totalCount.toString()
+                val stats = EmergencyPriorityCalculator.calculate(emergencyList)
+                findViewById<TextView>(R.id.textViewTotalSosCount).text = stats.totalSosCount.toString()
+                findViewById<TextView>(R.id.textViewVerifiedSosCount).text = stats.verifiedUserSosCount.toString()
+                findViewById<TextView>(R.id.textViewUnverifiedSosCount).text = stats.unverifiedUserSosCount.toString()
+                findViewById<TextView>(R.id.textViewPriorityScore).text = stats.emergencyPriorityScore.toString()
 
                 if (currentTab == AdminTab.EMERGENCIES) renderCurrentTabContent()
             }
@@ -246,7 +255,6 @@ class AdminDashboardActivity : AppCompatActivity() {
                     val timestamp = child.child("timestampMs").getValue(Long::class.java) ?: System.currentTimeMillis()
                     incidentList.add(IncidentItem(id, type, desc, status, timestamp))
                 }
-                findViewById<TextView>(R.id.textViewIncidentsCount).text = incidentList.size.toString()
                 if (currentTab == AdminTab.INCIDENTS) renderCurrentTabContent()
             }
 
@@ -256,7 +264,6 @@ class AdminDashboardActivity : AppCompatActivity() {
 
     private fun updateHazardsCount() {
         val total = hazardList.size + blockedRoadList.size
-        findViewById<TextView>(R.id.textViewHazardsCount).text = total.toString()
     }
 
     private fun renderCurrentTabContent() {
@@ -547,7 +554,8 @@ class AdminDashboardActivity : AppCompatActivity() {
         val accuracy: Float,
         val provider: String,
         val note: String?,
-    )
+        override val isVerified: Boolean
+    ) : EmergencyVerifiable
 
     private data class HazardItem(
         val id: String,
