@@ -56,6 +56,11 @@ class SosViewModelLocationTest {
             active = activeEmergency.copy(location = location, locationStatus = status)
         }
 
+        override fun updateActiveEmergencyNote(note: String?) {
+            val activeEmergency = active ?: return
+            active = activeEmergency.copy(note = note)
+        }
+
         override fun getHistory(): List<SosEmergency> = historyList.toList()
     }
 

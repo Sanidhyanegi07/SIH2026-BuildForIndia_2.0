@@ -38,7 +38,14 @@ data class GeoRescueBlePacket(
     val longitude: Double? = null,
     val status: String? = null,
     val payload: Map<String, String> = emptyMap(),
+    val noteText: String? = null,
 ) {
+    init {
+        // Enforce the 120 character cap at construction per §8.7
+        require(noteText == null || noteText.length <= MAX_NOTE_LENGTH) {
+            "noteText exceeds maximum allowed length of $MAX_NOTE_LENGTH characters"
+        }
+    }
 
     /** A packet with no hops left must be processed locally but never forwarded again. */
     fun hasHopsRemaining(): Boolean = ttl > 0
@@ -60,6 +67,9 @@ data class GeoRescueBlePacket(
 
         /** Maximum character length of a single payload entry. */
         const val MAX_PAYLOAD_VALUE_CHARS = 1024
+        
+        /** Maximum character length of the optional incident note. */
+        const val MAX_NOTE_LENGTH = 120
 
         fun newPacketId(): String = "GRX-${UUID.randomUUID()}"
     }
@@ -125,6 +135,9 @@ object GeoRescueBlePacketCodec {
         if (packet.status != null) {
             append("\"status\":\"").append(escape(packet.status)).append("\",")
         }
+        if (!packet.noteText.isNullOrBlank()) {
+            append("\"noteText\":\"").append(escape(packet.noteText)).append("\",")
+        }
         append("\"payload\":{")
         append(packet.payload.entries.joinToString(",") { (k, v) ->
             "\"${escape(k)}\":\"${escape(v)}\""
@@ -147,6 +160,11 @@ object GeoRescueBlePacketCodec {
         (root["payload"] as? Map<*, *>)?.forEach { (k, v) ->
             if (k is String && v != null) payload[k] = v.toString()
         }
+        
+        var parsedNote = root["noteText"] as? String
+        if (parsedNote?.isBlank() == true) {
+            parsedNote = null
+        }
 
         GeoRescueBlePacket(
             protocolVersion = (root["protocolVersion"] as? Number)?.toInt() ?: GeoRescueBlePacket.PROTOCOL_VERSION,
@@ -160,6 +178,7 @@ object GeoRescueBlePacketCodec {
             longitude = (root["longitude"] as? Number)?.toDouble(),
             status = root["status"] as? String,
             payload = payload,
+            noteText = parsedNote?.take(GeoRescueBlePacket.MAX_NOTE_LENGTH),
         )
     } catch (_: Exception) {
         null

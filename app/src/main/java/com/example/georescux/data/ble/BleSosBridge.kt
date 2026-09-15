@@ -46,6 +46,7 @@ class BleSosBridge(
             payload = buildMap {
                 emergency.locationStatus?.let { put("locationStatus", it.name) }
             },
+            noteText = emergency.note,
         )
 
     /**
@@ -103,6 +104,7 @@ class BleSosBridge(
                     )
                 }.getOrNull() ?: com.example.georescux.domain.sos.SosLocationStatus.ACQUIRED
             },
+            note = packet.noteText,
         )
     }
 

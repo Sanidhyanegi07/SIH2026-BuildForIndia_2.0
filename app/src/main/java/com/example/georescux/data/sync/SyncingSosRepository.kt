@@ -64,6 +64,14 @@ class SyncingSosRepository(
         }
     }
 
+    override fun updateActiveEmergencyNote(note: String?) {
+        local.updateActiveEmergencyNote(note)
+        val active = local.getActiveEmergency()
+        if (active != null) {
+            scheduleBackup(active)
+        }
+    }
+
     override fun completeEmergency(stoppedAtMs: Long): SosEmergency? {
         val completed = local.completeEmergency(stoppedAtMs)
         if (completed != null) {

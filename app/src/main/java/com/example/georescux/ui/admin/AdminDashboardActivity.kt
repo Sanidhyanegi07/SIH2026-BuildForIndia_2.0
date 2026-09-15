@@ -165,6 +165,8 @@ class AdminDashboardActivity : AppCompatActivity() {
                         val lng = locSnap.child("longitude").getValue(Double::class.java)
                         val acc = locSnap.child("accuracyMeters").getValue(Float::class.java) ?: 0f
                         val provider = locSnap.child("provider").getValue(String::class.java) ?: "GPS"
+                        
+                        val note = alertSnap.child("note").getValue(String::class.java)
 
                         emergencyList.add(
                             EmergencyItem(
@@ -177,7 +179,8 @@ class AdminDashboardActivity : AppCompatActivity() {
                                 latitude = lat,
                                 longitude = lng,
                                 accuracy = acc,
-                                provider = provider
+                                provider = provider,
+                                note = note
                             )
                         )
                     }
@@ -321,7 +324,12 @@ class AdminDashboardActivity : AppCompatActivity() {
         val statusText = if (emergency.isActive) "🚨 ACTIVE SOS" else "✅ RESOLVED"
 
         card.findViewById<TextView>(R.id.textAlertDate).text = "$statusText · UID: ${emergency.uid.take(8)}…"
-        card.findViewById<TextView>(R.id.textAlertDuration).text = "Started: $dateStr · Status: ${emergency.status}"
+        
+        var durationText = "Started: $dateStr · Status: ${emergency.status}"
+        if (!emergency.note.isNullOrBlank()) {
+            durationText += "\nNote: ${emergency.note}"
+        }
+        card.findViewById<TextView>(R.id.textAlertDuration).text = durationText
 
         val locText = if (emergency.latitude != null && emergency.longitude != null) {
             String.format(Locale.US, "📍 Lat: %.5f, Lng: %.5f (±%.0fm, %s)", emergency.latitude, emergency.longitude, emergency.accuracy, emergency.provider)
@@ -538,6 +546,7 @@ class AdminDashboardActivity : AppCompatActivity() {
         val longitude: Double?,
         val accuracy: Float,
         val provider: String,
+        val note: String?,
     )
 
     private data class HazardItem(

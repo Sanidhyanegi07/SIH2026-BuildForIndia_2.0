@@ -32,7 +32,7 @@ object SosAlertNotifier {
 
     private val notifIdCounter = AtomicInteger(1000)
 
-    fun notify(context: Context, originId: String, startedAtMs: Long) {
+    fun notify(context: Context, originId: String, startedAtMs: Long, note: String? = null) {
         val appContext = context.applicationContext
         ensureChannel(appContext)
 
@@ -50,6 +50,8 @@ object SosAlertNotifier {
         )
 
         val shortId = originId.takeLast(6).uppercase()
+        val noteSuffix = if (!note.isNullOrBlank()) "\n\nNote: $note" else ""
+        
         val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_logo)
             .setContentTitle("🚨 SOS Alert Received")
@@ -58,7 +60,7 @@ object SosAlertNotifier {
                 NotificationCompat.BigTextStyle()
                     .bigText(
                         "A nearby device (ID: …$shortId) has sent an offline SOS emergency via Bluetooth mesh. " +
-                            "Tap to view details in the Alerts screen."
+                            "Tap to view details in the Alerts screen.$noteSuffix"
                     )
             )
             .setPriority(NotificationCompat.PRIORITY_MAX)

@@ -222,6 +222,7 @@ class AppContainer(context: Context) {
                         context = appContext,
                         originId = packet.originDeviceId,
                         startedAtMs = packet.timestampMs,
+                        note = emergency.note,
                     )
                 }
                 // If signed in, mark pending so this device uploads the relayed emergency to Firebase
@@ -278,6 +279,7 @@ class AppContainer(context: Context) {
                         context = appContext,
                         originId = event.originId,
                         startedAtMs = event.occurredAtMs,
+                        note = emergency.note,
                     )
                 }
             }

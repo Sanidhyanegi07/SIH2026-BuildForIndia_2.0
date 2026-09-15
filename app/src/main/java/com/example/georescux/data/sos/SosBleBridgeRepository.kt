@@ -51,6 +51,14 @@ class SosBleBridgeRepository(
         }
     }
 
+    override fun updateActiveEmergencyNote(note: String?) {
+        delegate.updateActiveEmergencyNote(note)
+        val active = delegate.getActiveEmergency()
+        if (active != null) {
+            bridge.publishSos(active, emergencyId = active.id)
+        }
+    }
+
     override fun completeEmergency(stoppedAtMs: Long): SosEmergency? {
         val completed = delegate.completeEmergency(stoppedAtMs)
         lastEmittedHasLocation = false

@@ -21,6 +21,7 @@ class AlertsViewModelTest {
         var startCount = 0
         var completeCount = 0
         var locationUpdateCount = 0
+        var noteUpdateCount = 0
 
         override fun getActiveEmergency(): SosEmergency? = null
 
@@ -36,6 +37,10 @@ class AlertsViewModelTest {
 
         override fun updateActiveEmergencyLocation(location: SosLocation?, status: SosLocationStatus) {
             locationUpdateCount++
+        }
+
+        override fun updateActiveEmergencyNote(note: String?) {
+            noteUpdateCount++
         }
 
         override fun getHistory(): List<SosEmergency> = historyRecords.toList()

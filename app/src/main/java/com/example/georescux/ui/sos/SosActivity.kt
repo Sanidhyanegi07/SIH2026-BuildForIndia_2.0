@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -12,6 +13,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.ViewModelProvider
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
@@ -110,6 +112,16 @@ class SosActivity : AppCompatActivity() {
             // The user explicitly asked again for the location permission.
             locationPermissionLauncher.launch(LOCATION_PERMISSIONS)
         }
+        
+        val editNote = findViewById<EditText>(R.id.editNote)
+        val textNoteCounter = findViewById<TextView>(R.id.textNoteCounter)
+        
+        editNote.addTextChangedListener { editable ->
+            val note = editable?.toString()
+            val len = note?.length ?: 0
+            textNoteCounter.text = "$len/120"
+            viewModel.updateNote(note)
+        }
 
         uiScope.launch {
             viewModel.uiState.collect { render(it) }
@@ -146,6 +158,16 @@ class SosActivity : AppCompatActivity() {
                     "Started at " + SimpleDateFormat("HH:mm", Locale.getDefault())
                         .format(Date(emergency.startedAtMs))
                 } ?: ""
+                
+                val editNote = findViewById<EditText>(R.id.editNote)
+                val textNoteCounter = findViewById<TextView>(R.id.textNoteCounter)
+                val incomingNote = ui.emergency?.note ?: ""
+                if (editNote.text.toString() != incomingNote) {
+                    editNote.setText(incomingNote)
+                    editNote.setSelection(editNote.text.length)
+                }
+                val noteLen = ui.emergency?.note?.length ?: 0
+                textNoteCounter.text = "$noteLen/120"
 
                 // One permission decision per emergency (per activity lifetime).
                 if (!locationSetupDone) {

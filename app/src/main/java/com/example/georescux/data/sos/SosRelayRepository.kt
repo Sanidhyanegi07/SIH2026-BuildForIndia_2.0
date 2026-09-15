@@ -52,6 +52,11 @@ class SosRelayRepository(
         delegate.updateActiveEmergencyLocation(location, status)
     }
 
+    override fun updateActiveEmergencyNote(note: String?) {
+        // Do NOT relay note updates for the same reason we don't relay location updates.
+        delegate.updateActiveEmergencyNote(note)
+    }
+
     override fun completeEmergency(stoppedAtMs: Long): SosEmergency? {
         val completed = delegate.completeEmergency(stoppedAtMs)
         if (completed != null) {

@@ -27,6 +27,12 @@ interface SosRepository {
      * emergency or a history entry.
      */
     fun updateActiveEmergencyLocation(location: SosLocation?, status: SosLocationStatus)
+    
+    /**
+     * Updates the optional note attached to the currently active emergency (no-op when
+     * none is active). Note is capped at 120 chars in the domain.
+     */
+    fun updateActiveEmergencyNote(note: String?)
 
     /** Finished emergencies, newest first. */
     fun getHistory(): List<SosEmergency>

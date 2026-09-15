@@ -161,6 +161,14 @@ class SosViewModel(
         acquisitionActive = false
     }
 
+    /** Updates the incident note on the active emergency. */
+    fun updateNote(note: String?) {
+        val current = _uiState.value
+        if (current.state != SosState.ACTIVE) return
+        sosRepository.updateActiveEmergencyNote(note)
+        _uiState.value = _uiState.value.copy(emergency = sosRepository.getActiveEmergency())
+    }
+
     private fun countdownFinished() {
         transition(SosEvent.COUNTDOWN_FINISHED)      // COUNTDOWN -> ACTIVE
         // Persist locally (works offline). The duplicate guard means a retry

@@ -54,6 +54,10 @@ class SyncingSosRepositoryTest {
             active = active?.copy(location = location, locationStatus = status)
         }
 
+        override fun updateActiveEmergencyNote(note: String?) {
+            active = active?.copy(note = note)
+        }
+
         override fun getHistory(): List<SosEmergency> = historyRecords.toList()
     }
 

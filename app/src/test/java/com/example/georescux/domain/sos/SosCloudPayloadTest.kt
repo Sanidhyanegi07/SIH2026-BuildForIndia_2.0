@@ -42,6 +42,7 @@ class SosCloudPayloadTest {
                     "provider" to "gps",
                 ),
                 "locationStatus" to "ACQUIRED",
+                "note" to null,
             ),
             SosCloudPayload.fromEmergency(emergency)
         )
@@ -55,6 +56,7 @@ class SosCloudPayloadTest {
             stoppedAtMs = null,
             location = null,
             locationStatus = null,
+            note = null,
         )
 
         assertEquals(
@@ -65,9 +67,34 @@ class SosCloudPayloadTest {
                 "stoppedAtMs" to null,
                 "location" to null,
                 "locationStatus" to null,
+                "note" to null,
             ),
             SosCloudPayload.fromEmergency(emergency)
         )
+    }
+
+    @Test
+    fun `emergency with note maps note field correctly`() {
+        val emergency = SosEmergency(
+            id = "alert-4",
+            startedAtMs = 4_000L,
+            note = "Need help fast",
+        )
+
+        val payload = SosCloudPayload.fromEmergency(emergency)
+        assertEquals("Need help fast", payload["note"])
+    }
+    
+    @Test
+    fun `emergency with blank note omits it as null`() {
+        val emergency = SosEmergency(
+            id = "alert-5",
+            startedAtMs = 5_000L,
+            note = "   ",
+        )
+
+        val payload = SosCloudPayload.fromEmergency(emergency)
+        assertEquals(null, payload["note"])
     }
 
     @Test

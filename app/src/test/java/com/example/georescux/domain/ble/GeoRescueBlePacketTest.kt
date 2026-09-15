@@ -64,6 +64,36 @@ class GeoRescueBlePacketTest {
         assertNull(restored.latitude)
         assertNull(restored.longitude)
         assertNull(restored.status)
+        assertNull(restored.noteText)
+    }
+
+    @Test
+    fun `noteText serializes and deserializes correctly`() {
+        val original = validPacket().copy(noteText = "Trapped in basement, need help")
+        val restored = GeoRescueBlePacketCodec.deserialize(original.serialize())
+        assertEquals("Trapped in basement, need help", restored?.noteText)
+        assertEquals(original, restored)
+    }
+
+    @Test
+    fun `deserializing blank noteText converts it to null`() {
+        val json = """{"packetId":"GRX-1","originDeviceId":"A","timestamp":1,"type":"SOS","noteText":"   "}"""
+        val restored = GeoRescueBlePacketCodec.deserialize(json)
+        assertNull(restored?.noteText)
+    }
+
+    @Test
+    fun `deserializing noteText over 120 chars truncates to 120`() {
+        val longNote = "x".repeat(150)
+        val json = """{"packetId":"GRX-1","originDeviceId":"A","timestamp":1,"type":"SOS","noteText":"$longNote"}"""
+        val restored = GeoRescueBlePacketCodec.deserialize(json)
+        assertEquals(120, restored?.noteText?.length)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `creating packet with noteText over 120 chars throws exception`() {
+        val longNote = "x".repeat(121)
+        validPacket().copy(noteText = longNote)
     }
 
     @Test

@@ -37,5 +37,11 @@ class SosRepositoryImpl(private val store: LocalSosStore) : SosRepository {
         store.saveActive(active.copy(location = location, locationStatus = status))
     }
 
+    override fun updateActiveEmergencyNote(note: String?) {
+        val active = store.loadActive() ?: return
+        val capNote = note?.take(120)
+        store.saveActive(active.copy(note = capNote))
+    }
+
     override fun getHistory(): List<SosEmergency> = store.loadHistory()
 }

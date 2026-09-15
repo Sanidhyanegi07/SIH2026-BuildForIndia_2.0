@@ -32,6 +32,7 @@ object SosCloudPayload {
             "stoppedAtMs" to emergency.stoppedAtMs,
             "location" to location,
             "locationStatus" to emergency.locationStatus?.name,
+            "note" to emergency.note?.takeIf { it.isNotBlank() },
         )
     }
 
