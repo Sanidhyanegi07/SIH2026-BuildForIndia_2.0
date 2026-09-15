@@ -14,6 +14,8 @@ class ProfileStore(context: Context) {
         val phone: String = "",
         val email: String = "",
         val imagePath: String? = null,
+        val verificationStatus: String = "UNVERIFIED",
+        val verificationDocumentPath: String? = null,
     )
 
     private val prefs = context.getSharedPreferences("profile_store", Context.MODE_PRIVATE)
@@ -23,6 +25,8 @@ class ProfileStore(context: Context) {
         phone = prefs.getString(KEY_PHONE, "").orEmpty(),
         email = prefs.getString(KEY_EMAIL, "").orEmpty(),
         imagePath = prefs.getString(KEY_IMAGE, null),
+        verificationStatus = prefs.getString(KEY_VERIFICATION_STATUS, "UNVERIFIED").orEmpty(),
+        verificationDocumentPath = prefs.getString(KEY_VERIFICATION_DOC, null),
     )
 
     fun save(profile: Profile) {
@@ -31,6 +35,8 @@ class ProfileStore(context: Context) {
             .putString(KEY_PHONE, profile.phone)
             .putString(KEY_EMAIL, profile.email)
             .putString(KEY_IMAGE, profile.imagePath)
+            .putString(KEY_VERIFICATION_STATUS, profile.verificationStatus)
+            .putString(KEY_VERIFICATION_DOC, profile.verificationDocumentPath)
             .apply()
     }
 
@@ -39,5 +45,7 @@ class ProfileStore(context: Context) {
         const val KEY_PHONE = "phone"
         const val KEY_EMAIL = "email"
         const val KEY_IMAGE = "image_path"
+        const val KEY_VERIFICATION_STATUS = "verification_status"
+        const val KEY_VERIFICATION_DOC = "verification_doc_path"
     }
 }

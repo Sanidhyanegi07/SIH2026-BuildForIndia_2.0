@@ -59,6 +59,38 @@ class ProfileActivity : AppCompatActivity() {
             if (file.exists()) showImage(Uri.fromFile(file))
         }
 
+        val verificationStatusText = findViewById<TextView>(R.id.textVerificationStatus)
+        verificationStatusText.text = "Status: ${saved.verificationStatus}"
+        
+        var currentVerificationDocPath = saved.verificationDocumentPath
+        var currentVerificationStatus = saved.verificationStatus
+
+        val documentPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) {
+                currentVerificationDocPath = copyImageToPrivateStorage(uri) // Reusing the copy method for simplicity
+                currentVerificationStatus = "PENDING"
+                verificationStatusText.text = "Status: PENDING"
+                Toast.makeText(this, "Document uploaded for verification", Toast.LENGTH_SHORT).show()
+                
+                // Sync verification request to Firebase
+                val uid = FirebaseAuth.getInstance().currentUser?.uid
+                if (uid != null) {
+                    com.google.firebase.database.FirebaseDatabase.getInstance().getReference("verification_requests")
+                        .child(uid)
+                        .setValue(mapOf(
+                            "uid" to uid, 
+                            "status" to "PENDING", 
+                            "timestampMs" to System.currentTimeMillis(),
+                            "name" to nameField.text.toString().trim()
+                        ))
+                }
+            }
+        }
+
+        findViewById<TextView>(R.id.textUploadDocument).setOnClickListener {
+            documentPicker.launch("image/*") // Mocking document upload with image picker
+        }
+
         findViewById<TextView>(R.id.textChangePhoto).setOnClickListener {
             imagePicker.launch("image/*")
         }
@@ -72,6 +104,8 @@ class ProfileActivity : AppCompatActivity() {
                     phone = phoneField.text.toString().trim(),
                     email = emailField.text.toString().trim(),
                     imagePath = imagePath,
+                    verificationStatus = currentVerificationStatus,
+                    verificationDocumentPath = currentVerificationDocPath,
                 )
             )
             Toast.makeText(this, "Profile saved", Toast.LENGTH_SHORT).show()

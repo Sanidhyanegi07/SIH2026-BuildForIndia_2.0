@@ -112,7 +112,7 @@ class SosViewModel(
         if (acquisitionActive) return
         if (_uiState.value.state != SosState.ACTIVE) return
         acquisitionActive = true
-        locationRepository.startAcquisition { fix ->
+        locationRepository.startAcquisition(fastMode = true) { fix ->
             scope.launch { onLocationFix(fix) }
         }
         locationTimeoutJob = scope.launch {
@@ -142,7 +142,7 @@ class SosViewModel(
         val current = _uiState.value
         if (current.state != SosState.ACTIVE) return
         val now = System.currentTimeMillis()
-        if (!SosLocationPolicy.shouldPersistFix(lastLocationPersistAtMs, now)) return
+        if (!SosLocationPolicy.shouldPersistFix(lastLocationPersistAtMs, now, fastMode = true)) return
         lastLocationPersistAtMs = now
         locationTimeoutJob?.cancel() // a fix arrived; the timeout no longer applies
         updateSosLocation(fix, SosLocationStatus.ACQUIRED)

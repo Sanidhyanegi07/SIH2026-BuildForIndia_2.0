@@ -116,6 +116,48 @@
             android:textColorHint="@color/text_subtle"
             android:textSize="14sp" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="6dp"
+            android:text="IDENTITY VERIFICATION"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/bg_input_field"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/textVerificationStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center_vertical"
+                android:text="Status: UNVERIFIED"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/textUploadDocument"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="8dp"
+                android:text="Upload Doc"
+                android:textColor="#1976D2"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <Button
             android:id="@+id/buttonSaveProfile"
             android:layout_width="match_parent"

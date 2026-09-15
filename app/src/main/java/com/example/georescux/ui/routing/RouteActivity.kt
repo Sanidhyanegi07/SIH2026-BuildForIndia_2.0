@@ -573,6 +573,7 @@ class RouteActivity : AppCompatActivity() {
      */
     private fun renderSosMarkers() {
         val mapView = findViewById<MapView>(R.id.mapView)
+        var hasActiveEmergency = false
         synchronized(sosMarkers) {
             sosMarkers.forEach { marker ->
                 try {
@@ -585,6 +586,7 @@ class RouteActivity : AppCompatActivity() {
             val container = container()
             // The active emergency is NOT part of history by design — include it explicitly.
             val active = runCatching { container.sosRepository.getActiveEmergency() }.getOrNull()
+            hasActiveEmergency = active != null
             val historyLocated = runCatching { container.sosRepository.getHistory() }.getOrNull()
                 .orEmpty()
                 .asSequence()
@@ -609,6 +611,12 @@ class RouteActivity : AppCompatActivity() {
             }
         }
         mapView.invalidate()
+        updateSafeRouteProBadge(hasActiveEmergency)
+    }
+
+    private fun updateSafeRouteProBadge(isActive: Boolean) {
+        val badge = findViewById<TextView>(R.id.textSafeRouteProBadge) ?: return
+        badge.visibility = if (isActive) View.VISIBLE else View.GONE
     }
 
     /** Cached red SOS marker shared by all emergency markers. */

@@ -47,10 +47,36 @@
             android:id="@+id/textViewAdminEmail"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp"
+            android:layout_marginBottom="8dp"
             android:text="Logged in as: admin@georescux.com"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_input_field"
+            android:padding="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🌍 Region Filter:"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp"/>
+
+            <Spinner
+                android:id="@+id/spinnerAdminRegion"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:backgroundTint="@color/text_primary"/>
+        </LinearLayout>
 
         <!-- Operational Status & Sync Monitor Card -->
         <com.google.android.material.card.MaterialCardView
@@ -256,8 +282,20 @@
                     android:id="@+id/buttonTabResources"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
                     android:background="@drawable/bg_button_secondary"
                     android:text="🏥 Resources &amp; System"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+                <Button
+                    android:id="@+id/buttonTabVerifications"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="🛡️ Verification Queue"
                     android:textAllCaps="false"
                     android:textColor="@color/text_primary"
                     android:textSize="12sp"

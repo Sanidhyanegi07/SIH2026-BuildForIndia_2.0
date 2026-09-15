@@ -8,11 +8,14 @@ package com.example.georescux.domain.sos
  */
 object SosLocationPolicy {
     const val THROTTLE_MS = 60_000L
+    const val FAST_THROTTLE_MS = 10_000L
     const val TIMEOUT_MS = 15_000L
 
     /** The first fix (lastPersistAtMs == 0) always persists; later ones are throttled. */
-    fun shouldPersistFix(lastPersistAtMs: Long, nowMs: Long): Boolean =
-        lastPersistAtMs == 0L || nowMs - lastPersistAtMs >= THROTTLE_MS
+    fun shouldPersistFix(lastPersistAtMs: Long, nowMs: Long, fastMode: Boolean = false): Boolean {
+        val throttleMs = if (fastMode) FAST_THROTTLE_MS else THROTTLE_MS
+        return lastPersistAtMs == 0L || nowMs - lastPersistAtMs >= throttleMs
+    }
 
     /** "Unavailable" applies only when no status has been recorded yet. */
     fun shouldMarkUnavailable(currentStatus: SosLocationStatus?): Boolean =

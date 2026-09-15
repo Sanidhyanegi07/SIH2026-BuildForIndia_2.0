@@ -51,7 +51,7 @@ import java.util.Locale
 class AdminDashboardActivity : AppCompatActivity() {
 
     private val database by lazy { FirebaseDatabase.getInstance() }
-    private enum class AdminTab { EMERGENCIES, HAZARDS, INCIDENTS, RESOURCES }
+    private enum class AdminTab { EMERGENCIES, HAZARDS, INCIDENTS, RESOURCES, VERIFICATIONS }
     private var currentTab = AdminTab.EMERGENCIES
 
     // Cached state for instant rendering
@@ -59,6 +59,8 @@ class AdminDashboardActivity : AppCompatActivity() {
     private val hazardList = mutableListOf<HazardItem>()
     private val blockedRoadList = mutableListOf<BlockedRoadItem>()
     private val incidentList = mutableListOf<IncidentItem>()
+    private val verificationList = mutableListOf<VerificationRequestItem>()
+    private var selectedRegion: com.example.georescux.domain.routing.MapRegion? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +87,19 @@ class AdminDashboardActivity : AppCompatActivity() {
                 finish()
             }
 
+            val spinner = findViewById<android.widget.Spinner>(R.id.spinnerAdminRegion)
+            val regions = listOf("All Regions") + MapRegionCatalog.availableRegions.map { it.displayName }
+            val adapter = android.widget.ArrayAdapter(this@AdminDashboardActivity, android.R.layout.simple_spinner_dropdown_item, regions)
+            spinner.adapter = adapter
+            spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    val selectedName = regions[position]
+                    selectedRegion = if (selectedName == "All Regions") null else MapRegionCatalog.availableRegions.find { it.displayName == selectedName }
+                    renderCurrentTabContent()
+                }
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            }
+
             setupTabs()
             setupRealtimeFirebaseListeners()
             setupActionButtons()
@@ -96,6 +111,7 @@ class AdminDashboardActivity : AppCompatActivity() {
         val btnHazards = findViewById<Button>(R.id.buttonTabHazards)
         val btnIncidents = findViewById<Button>(R.id.buttonTabIncidents)
         val btnResources = findViewById<Button>(R.id.buttonTabResources)
+        val btnVerifications = findViewById<Button>(R.id.buttonTabVerifications)
         val hazardActions = findViewById<LinearLayout>(R.id.layoutHazardActions)
 
         fun updateTabStyles() {
@@ -116,6 +132,9 @@ class AdminDashboardActivity : AppCompatActivity() {
             btnResources.background = if (currentTab == AdminTab.RESOURCES) violetBg else secondaryBg
             btnResources.setTextColor(if (currentTab == AdminTab.RESOURCES) white else textPrimary)
 
+            btnVerifications.background = if (currentTab == AdminTab.VERIFICATIONS) violetBg else secondaryBg
+            btnVerifications.setTextColor(if (currentTab == AdminTab.VERIFICATIONS) white else textPrimary)
+
             hazardActions.visibility = if (currentTab == AdminTab.HAZARDS) View.VISIBLE else View.GONE
             renderCurrentTabContent()
         }
@@ -124,6 +143,7 @@ class AdminDashboardActivity : AppCompatActivity() {
         btnHazards.setOnClickListener { currentTab = AdminTab.HAZARDS; updateTabStyles() }
         btnIncidents.setOnClickListener { currentTab = AdminTab.INCIDENTS; updateTabStyles() }
         btnResources.setOnClickListener { currentTab = AdminTab.RESOURCES; updateTabStyles() }
+        btnVerifications.setOnClickListener { currentTab = AdminTab.VERIFICATIONS; updateTabStyles() }
     }
 
     private fun setupActionButtons() {
@@ -260,6 +280,23 @@ class AdminDashboardActivity : AppCompatActivity() {
 
             override fun onCancelled(error: DatabaseError) {}
         })
+
+        // 5. Verification requests listener
+        database.getReference("verification_requests").addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                verificationList.clear()
+                for (child in snapshot.children) {
+                    val uid = child.child("uid").getValue(String::class.java) ?: continue
+                    val status = child.child("status").getValue(String::class.java) ?: "PENDING"
+                    val name = child.child("name").getValue(String::class.java) ?: "Unknown"
+                    val timestamp = child.child("timestampMs").getValue(Long::class.java) ?: System.currentTimeMillis()
+                    verificationList.add(VerificationRequestItem(uid, name, status, timestamp))
+                }
+                if (currentTab == AdminTab.VERIFICATIONS) renderCurrentTabContent()
+            }
+
+            override fun onCancelled(error: DatabaseError) {}
+        })
     }
 
     private fun updateHazardsCount() {
@@ -273,12 +310,21 @@ class AdminDashboardActivity : AppCompatActivity() {
 
         when (currentTab) {
             AdminTab.EMERGENCIES -> {
-                sectionTitle.text = "ACTIVE EMERGENCY ALERTS (${emergencyList.size})"
-                if (emergencyList.isEmpty()) {
-                    showEmpty("No emergency alerts reported in Firebase.")
+                val filteredList = emergencyList.filter { em ->
+                    if (selectedRegion == null) true
+                    else {
+                        val lat = em.latitude ?: return@filter false
+                        val lng = em.longitude ?: return@filter false
+                        lat in selectedRegion!!.minLatitude..selectedRegion!!.maxLatitude &&
+                        lng in selectedRegion!!.minLongitude..selectedRegion!!.maxLongitude
+                    }
+                }
+                sectionTitle.text = "ACTIVE EMERGENCY ALERTS (${filteredList.size})"
+                if (filteredList.isEmpty()) {
+                    showEmpty("No emergency alerts in selected region.")
                     return
                 }
-                emergencyList.sortedByDescending { it.startedAtMs }.forEach { emergency ->
+                filteredList.sortedByDescending { it.startedAtMs }.forEach { emergency ->
                     container.addView(buildEmergencyCard(emergency))
                 }
             }
@@ -309,6 +355,16 @@ class AdminDashboardActivity : AppCompatActivity() {
                 sectionTitle.text = "EMERGENCY RESOURCES & SYSTEM HEALTH"
                 container.addView(buildSystemHealthCard())
                 container.addView(buildResourcesCard())
+            }
+            AdminTab.VERIFICATIONS -> {
+                sectionTitle.text = "IDENTITY VERIFICATION QUEUE (${verificationList.size})"
+                if (verificationList.isEmpty()) {
+                    showEmpty("No verification requests pending.")
+                    return
+                }
+                verificationList.sortedByDescending { it.timestampMs }.forEach { req ->
+                    container.addView(buildVerificationCard(req))
+                }
             }
         }
     }
@@ -386,6 +442,22 @@ class AdminDashboardActivity : AppCompatActivity() {
             setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.violet_accent))
             setOnClickListener {
                 showUpdateIncidentStatusDialog(incident.id, incident.status)
+            }
+        }
+        return card
+    }
+
+    private fun buildVerificationCard(req: VerificationRequestItem): View {
+        val card = layoutInflater.inflate(R.layout.item_alert, findViewById(R.id.adminDataContainer), false)
+        val dateStr = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(req.timestampMs))
+
+        card.findViewById<TextView>(R.id.textAlertDate).text = "🛡️ Verification Request · ${req.status}"
+        card.findViewById<TextView>(R.id.textAlertDuration).text = "User: ${req.name} (UID: ${req.uid})\nSubmitted: $dateStr"
+        card.findViewById<TextView>(R.id.textAlertLocation).apply {
+            text = "Approve Identity"
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
+            setOnClickListener {
+                approveVerification(req.uid)
             }
         }
         return card
@@ -542,6 +614,30 @@ class AdminDashboardActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun approveVerification(uid: String) {
+        lifecycleScope.launch {
+            try {
+                // Update the verification request status
+                database.getReference("verification_requests")
+                    .child(uid)
+                    .child("status")
+                    .setValue("VERIFIED")
+                    .await()
+                
+                // Also update the user's root node in sos_alerts to apply priority score universally
+                database.getReference("sos_alerts")
+                    .child(uid)
+                    .child("isVerified")
+                    .setValue(true)
+                    .await()
+                    
+                Toast.makeText(this@AdminDashboardActivity, "User verified successfully", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@AdminDashboardActivity, "Failed to approve: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private data class EmergencyItem(
         val alertId: String,
         val uid: String,
@@ -574,6 +670,13 @@ class AdminDashboardActivity : AppCompatActivity() {
         val id: String,
         val type: String,
         val description: String,
+        val status: String,
+        val timestampMs: Long,
+    )
+
+    private data class VerificationRequestItem(
+        val uid: String,
+        val name: String,
         val status: String,
         val timestampMs: Long,
     )

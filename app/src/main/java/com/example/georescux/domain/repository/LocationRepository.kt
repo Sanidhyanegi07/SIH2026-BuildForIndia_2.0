@@ -15,7 +15,7 @@ interface LocationRepository {
      * thread. The caller is responsible for having the location permission
      * and for calling [stopAcquisition] when done.
      */
-    fun startAcquisition(onLocation: (SosLocation) -> Unit)
+    fun startAcquisition(fastMode: Boolean = false, onLocation: (SosLocation) -> Unit)
 
     /** Stops all location updates. Safe to call multiple times. */
     fun stopAcquisition()

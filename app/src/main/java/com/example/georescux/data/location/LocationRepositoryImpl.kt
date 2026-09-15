@@ -32,7 +32,7 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
     // The ViewModel only starts acquisition after the permission check, so
     // a SecurityException here means the permission was revoked externally.
     @SuppressLint("MissingPermission")
-    override fun startAcquisition(onLocation: (SosLocation) -> Unit) {
+    override fun startAcquisition(fastMode: Boolean, onLocation: (SosLocation) -> Unit) {
         this.onLocation = onLocation
         try {
             // Best available so far — often a recent fix, possibly null.
@@ -40,7 +40,8 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
                 location?.let { deliver(it) }
             }
 
-            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, UPDATE_INTERVAL_MS)
+            val interval = if (fastMode) FAST_UPDATE_INTERVAL_MS else UPDATE_INTERVAL_MS
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, interval)
                 .build()
             fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
         } catch (e: SecurityException) {
@@ -68,5 +69,6 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
 
     private companion object {
         const val UPDATE_INTERVAL_MS = 60_000L
+        const val FAST_UPDATE_INTERVAL_MS = 10_000L
     }
 }
