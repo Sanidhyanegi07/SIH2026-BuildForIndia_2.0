@@ -47,10 +47,20 @@ data class AdminAlert(
     /** Optional district name when scoped to a district. */
     val district: String? = null,
 ) {
-    /** True when this alert should be delivered to the given active region. */
-    fun targets(activeRegionId: String): Boolean = when (scopeType) {
+    /**
+     * True when this alert should be delivered to the given active region.
+     *
+     * [deviceDistrict] is the district the receiving device currently believes
+     * it is in (derived from its last GPS fix), or null when unknown. For a
+     * district-scoped alert the policy is deliberately inclusive: a device
+     * whose district is known must match, but a device with no fix yet still
+     * receives state-scoped-and-broader alerts rather than missing them.
+     */
+    fun targets(activeRegionId: String, deviceDistrict: String? = null): Boolean = when (scopeType) {
         SCOPE_INDIA -> true
         SCOPE_STATE -> regionId != null && regionId == activeRegionId
+        SCOPE_DISTRICT -> regionId != null && regionId == activeRegionId &&
+            (deviceDistrict == null || district.isNullOrBlank() || district == deviceDistrict)
         else -> regionId != null && regionId == activeRegionId
     }
 

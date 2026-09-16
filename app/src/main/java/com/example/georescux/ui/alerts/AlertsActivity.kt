@@ -9,8 +9,10 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.alerts.AdminAlertObserver
+import com.example.georescux.domain.admin.DistrictCatalog
 import com.example.georescux.domain.alerts.AlertEntry
 import com.example.georescux.domain.alerts.AlertSource
+import com.example.georescux.ui.common.ActiveSosBanner
 import com.example.georescux.ui.common.BottomNav
 import com.example.georescux.ui.common.HelpLauncher
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +40,11 @@ class AlertsActivity : AppCompatActivity() {
 
     private val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
 
+    override fun onResume() {
+        super.onResume()
+        ActiveSosBanner.refresh(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_alerts)
@@ -45,7 +52,14 @@ class AlertsActivity : AppCompatActivity() {
         HelpLauncher.bind(this)
         findViewById<TextView>(R.id.topBarTitle).setText(R.string.alerts_title)
 
-        adminAlertObserver = AdminAlertObserver(this) { container.activeRegionId }
+        adminAlertObserver = AdminAlertObserver(this, { container.activeRegionId }) {
+            // Derive the device's district from its most recent located SOS
+            // record so a district-scoped admin alert is filtered correctly.
+            val located = container.sosRepository.getActiveEmergency()?.location
+                ?: container.sosRepository.getHistory()
+                    .firstOrNull { it.location != null }?.location
+            located?.let { DistrictCatalog.districtForLocation(it.latitude, it.longitude)?.displayName }
+        }
         val viewModel = ViewModelProvider(
             this,
             AlertsViewModel.Factory(container.sosRepository, adminAlertObserver.alerts.value),

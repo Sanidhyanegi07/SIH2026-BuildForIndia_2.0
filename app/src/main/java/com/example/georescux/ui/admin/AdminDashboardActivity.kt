@@ -16,6 +16,7 @@ import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.auth.UserRole
 import com.example.georescux.data.maps.MapRegionCatalog
+import com.example.georescux.domain.admin.DistrictCatalog
 import com.example.georescux.domain.admin.EmergencyPriorityCalculator
 import com.example.georescux.domain.admin.EmergencyVerifiable
 import com.example.georescux.domain.routing.RoadHazard
@@ -59,6 +60,7 @@ class AdminDashboardActivity : AppCompatActivity() {
     private val hazardList = mutableListOf<HazardItem>()
     private val blockedRoadList = mutableListOf<BlockedRoadItem>()
     private val incidentList = mutableListOf<IncidentItem>()
+    private val eventList = mutableListOf<EventItem>()
     private val verificationList = mutableListOf<VerificationRequestItem>()
     private var selectedRegion: com.example.georescux.domain.routing.MapRegion? = null
     private var selectedDistrict: com.example.georescux.domain.admin.District? = null
@@ -174,12 +176,24 @@ class AdminDashboardActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }
     }
-
-    private fun setupActionButtons() {        findViewById<Button>(R.id.buttonAddHazard).setOnClickListener {
+    private fun setupActionButtons() {
+        findViewById<Button>(R.id.buttonAddHazard).setOnClickListener {
             showAddHazardDialog()
         }
         findViewById<Button>(R.id.buttonBlockRoad).setOnClickListener {
             showBlockRoadDialog()
+        }
+        // §63: publish a geographically scoped emergency alert.
+        findViewById<Button>(R.id.buttonBroadcastAlert).setOnClickListener {
+            showBroadcastAlertDialog()
+        }
+        // §49: log a larger emergency event with geographic scope.
+        findViewById<Button>(R.id.buttonCreateEvent).setOnClickListener {
+            showCreateEventDialog()
+        }
+        // §42/§43: open the geographic intelligence map.
+        findViewById<Button>(R.id.buttonOpenAdminMap).setOnClickListener {
+            startActivity(Intent(this, AdminMapActivity::class.java))
         }
     }
 
@@ -306,9 +320,27 @@ class AdminDashboardActivity : AppCompatActivity() {
             override fun onCancelled(error: DatabaseError) {}
         })
 
-        // 5. Verification requests listener
-        database.getReference("verification_requests").addValueEventListener(object : ValueEventListener {
+        // 5. Events listener (§49) — drives the Active Events stat.
+        database.getReference("events").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                eventList.clear()
+                for (child in snapshot.children) {
+                    val type = child.child("type").getValue(String::class.java) ?: "EVENT"
+                    val desc = child.child("description").getValue(String::class.java).orEmpty()
+                    val status = child.child("status").getValue(String::class.java) ?: "ACTIVE"
+                    val timestamp = child.child("timestampMs").getValue(Long::class.java)
+                        ?: System.currentTimeMillis()
+                    eventList.add(EventItem(child.key ?: "event", type, desc, status, timestamp))
+                }
+                findViewById<TextView>(R.id.textViewActiveEventsCount).text =
+                    eventList.count { it.status == "ACTIVE" }.toString()
+            }
+
+            override fun onCancelled(error: DatabaseError) {}
+        })
+
+        // 6. Verification requests listener
+        database.getReference("verification_requests").addValueEventListener(object : ValueEventListener {            override fun onDataChange(snapshot: DataSnapshot) {
                 verificationList.clear()
                 for (child in snapshot.children) {
                     val uid = child.child("uid").getValue(String::class.java) ?: continue
@@ -342,6 +374,19 @@ class AdminDashboardActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.textViewPriorityScore).text = stats.emergencyPriorityScore.toString()
         findViewById<TextView>(R.id.textViewActiveSosCount).text =
             scoped.count { it.isActive }.toString()
+        // §41: SOS started since midnight of the current day.
+        val startOfToday = startOfTodayMs()
+        findViewById<TextView>(R.id.textViewTodaySosCount).text =
+            scoped.count { it.startedAtMs >= startOfToday }.toString()
+    }
+
+    private fun startOfTodayMs(): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
     }
 
     /** True when a position lies inside the selected region and district (either may be "all"). */
@@ -558,6 +603,170 @@ class AdminDashboardActivity : AppCompatActivity() {
         return card
     }
 
+    /**
+     * §63: compose and publish a geographically targeted alert. The scope
+     * (India / state / district), region and district choose the audience;
+     * the receiving device re-checks scope against its own region and
+     * district before showing it (spec §11.5 delivery).
+     */
+    private fun showBroadcastAlertDialog() {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 10)
+        }
+        val scopeSpinner = android.widget.Spinner(this)
+        val stateSpinner = android.widget.Spinner(this)
+        val districtSpinner = android.widget.Spinner(this)
+        val titleInput = EditText(this).apply { hint = "Title (e.g. Heavy Rainfall Alert)" }
+        val bodyInput = EditText(this).apply { hint = "Message (e.g. Avoid affected roads.)" }
+
+        val scopes = listOf("India (everyone)", "State", "District")
+        scopeSpinner.adapter = android.widget.ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, scopes
+        )
+        val states = MapRegionCatalog.availableRegions.map { it.id to it.displayName }
+        stateSpinner.adapter = android.widget.ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, states.map { it.second }
+        )
+        districtSpinner.adapter = android.widget.ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, listOf("All districts")
+        )
+
+        // Narrowing the scope reveals the state and district pickers.
+        scopeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                val stateVisible = pos > 0
+                stateSpinner.visibility = if (stateVisible) View.VISIBLE else View.GONE
+                districtSpinner.visibility = if (pos == 2) View.VISIBLE else View.GONE
+                if (stateVisible) {
+                    val stateId = states[stateSpinner.selectedItemPosition.coerceAtMost(states.size - 1)].first
+                    val districts = DistrictCatalog.districtsForState(stateId).map { it.displayName }
+                    districtSpinner.adapter = android.widget.ArrayAdapter(
+                        this@AdminDashboardActivity,
+                        android.R.layout.simple_spinner_dropdown_item,
+                        listOf("All districts") + districts,
+                    )
+                }
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+        }
+        stateSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                if (scopeSpinner.selectedItemPosition != 2) return
+                val stateId = states[pos].first
+                val districts = DistrictCatalog.districtsForState(stateId).map { it.displayName }
+                districtSpinner.adapter = android.widget.ArrayAdapter(
+                    this@AdminDashboardActivity,
+                    android.R.layout.simple_spinner_dropdown_item,
+                    listOf("All districts") + districts,
+                )
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+        }
+
+        layout.addView(scopeSpinner)
+        layout.addView(stateSpinner)
+        layout.addView(districtSpinner)
+        layout.addView(titleInput)
+        layout.addView(bodyInput)
+
+        AlertDialog.Builder(this)
+            .setTitle("Broadcast Regional Alert")
+            .setView(layout)
+            .setPositiveButton("Publish") { _, _ ->
+                val title = titleInput.text.toString().trim()
+                if (title.isBlank()) {
+                    Toast.makeText(this, "A title is required", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val scopeType = when (scopeSpinner.selectedItemPosition) {
+                    1 -> "state"
+                    2 -> "district"
+                    else -> "india"
+                }
+                val stateId = if (scopeSpinner.selectedItemPosition > 0)
+                    states[stateSpinner.selectedItemPosition].first else null
+                val districtName = if (scopeType == "district") {
+                    val sel = districtSpinner.selectedItem?.toString()
+                    if (sel == "All districts") null else sel
+                } else null
+
+                val alertId = "alert_${System.currentTimeMillis()}"
+                val payload = mapOf(
+                    "title" to title,
+                    "body" to bodyInput.text.toString().trim(),
+                    "timestampMs" to System.currentTimeMillis(),
+                    "scopeType" to scopeType,
+                    "regionId" to stateId,
+                    "district" to districtName,
+                )
+                lifecycleScope.launch {
+                    try {
+                        database.getReference("admin_alerts").child(alertId)
+                            .setValue(payload).await()
+                        Toast.makeText(this@AdminDashboardActivity,
+                            "Alert published to ${scopeType.replaceFirstChar { it.uppercase() }} scope",
+                            Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@AdminDashboardActivity,
+                            "Failed to publish: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /**
+     * §49: log a larger emergency event (heavy rainfall, road closure, flood
+     * alert, drill) with a geographic scope so it can feed operational views.
+     */
+    private fun showCreateEventDialog() {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 10)
+        }
+        val typeInput = EditText(this).apply { hint = "Type (e.g. Heavy Rainfall)" }
+        val descInput = EditText(this).apply { hint = "Description" }
+        val stateSpinner = android.widget.Spinner(this)
+        val states = MapRegionCatalog.availableRegions.map { it.id to it.displayName }
+        stateSpinner.adapter = android.widget.ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, states.map { it.second }
+        )
+        layout.addView(typeInput)
+        layout.addView(descInput)
+        layout.addView(stateSpinner)
+
+        AlertDialog.Builder(this)
+            .setTitle("Log Emergency Event")
+            .setView(layout)
+            .setPositiveButton("Log Event") { _, _ ->
+                val type = typeInput.text.toString().trim().ifBlank { "EMERGENCY_EVENT" }
+                val stateId = states[stateSpinner.selectedItemPosition].first
+                val eventId = "event_${System.currentTimeMillis()}"
+                val payload = mapOf(
+                    "type" to type,
+                    "description" to descInput.text.toString().trim(),
+                    "stateId" to stateId,
+                    "status" to "ACTIVE",
+                    "timestampMs" to System.currentTimeMillis(),
+                )
+                lifecycleScope.launch {
+                    try {
+                        database.getReference("events").child(eventId)
+                            .setValue(payload).await()
+                        Toast.makeText(this@AdminDashboardActivity,
+                            "Event logged", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@AdminDashboardActivity,
+                            "Failed to log event: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun showAddHazardDialog() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -758,6 +967,14 @@ class AdminDashboardActivity : AppCompatActivity() {
     )
 
     private data class IncidentItem(
+        val id: String,
+        val type: String,
+        val description: String,
+        val status: String,
+        val timestampMs: Long,
+    )
+
+    private data class EventItem(
         val id: String,
         val type: String,
         val description: String,

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/activeSosBanner"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#C62828"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="10dp"
+    android:text="🚨 SOS ACTIVE — tap to open emergency"
+    android:textColor="@color/white"
+    android:textSize="13sp"
+    android:textStyle="bold"
+    android:visibility="gone" />

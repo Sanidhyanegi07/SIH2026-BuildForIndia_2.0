@@ -8,6 +8,9 @@
 
     <include layout="@layout/view_top_bar" />
 
+    <!-- §21/§72: global active-SOS strip, present on every user screen. -->
+    <include layout="@layout/view_active_sos_banner" />
+
     <TextView
         android:id="@+id/textMapRegion"
         android:layout_width="wrap_content"

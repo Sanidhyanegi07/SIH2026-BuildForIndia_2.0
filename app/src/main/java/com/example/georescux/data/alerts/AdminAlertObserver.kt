@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class AdminAlertObserver(
     context: Context,
     private val activeRegionId: () -> String,
+    /** Supplies the district this device believes it is in (from its last GPS fix), or null. */
+    private val deviceDistrict: () -> String? = { null },
 ) {
 
     private val store = AdminAlertStore(context)
@@ -41,7 +43,7 @@ class AdminAlertObserver(
                 val received = snapshot.children.mapNotNull { child ->
                     runCatching { toAdminAlert(child) }.getOrNull()
                 }
-                val relevant = received.filter { it.targets(activeRegionId()) }
+                val relevant = received.filter { it.targets(activeRegionId(), deviceDistrict()) }
                 // Persist only what targets this device, then publish.
                 store.addAll(relevant)
                 _alerts.value = store.loadAll().sortedByDescending { it.timestampMs }

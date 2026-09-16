@@ -19,6 +19,7 @@ import com.example.georescux.R
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.example.georescux.data.profile.ProfileStore
 import com.example.georescux.ui.auth.LoginActivity
+import com.example.georescux.ui.common.ActiveSosBanner
 import com.example.georescux.ui.common.BottomNav
 import com.example.georescux.ui.common.HelpLauncher
 import com.example.georescux.ui.contacts.ContactsActivity
@@ -54,6 +55,11 @@ class ProfileActivity : AppCompatActivity() {
             selectedImageUri = uri
             showImage(uri)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ActiveSosBanner.refresh(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

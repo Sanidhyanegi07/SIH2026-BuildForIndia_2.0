@@ -22,6 +22,9 @@
 
         <include layout="@layout/view_top_bar" />
 
+        <!-- §21/§72: global active-SOS strip. -->
+        <include layout="@layout/view_active_sos_banner" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

@@ -13,6 +13,7 @@ import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.example.georescux.domain.routing.MapRegion
+import com.example.georescux.ui.common.ActiveSosBanner
 import com.example.georescux.ui.common.BottomNav
 import com.example.georescux.ui.common.ConnectivityBadge
 import com.example.georescux.ui.common.HelpLauncher
@@ -161,6 +162,7 @@ class MapActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         mapView.onResume()
+        ActiveSosBanner.refresh(this)
     }
 
     override fun onPause() {
