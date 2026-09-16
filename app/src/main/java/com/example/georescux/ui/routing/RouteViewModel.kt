@@ -51,8 +51,6 @@ class RouteViewModel(
     private val routeRepository: RouteRepository,
     /** Injected for tests; production runs every heavy step off the main thread. */
     private val loadDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    /** Provides access to the SOS repository for Safe Route Pro activation. */
-    private val sosRepository: SosRepository = container().sosRepository,
 ) : ViewModel() {
 
     // Same explicit-scope pattern as RouteActivity's uiScope (the project
@@ -76,18 +74,6 @@ class RouteViewModel(
             pendingStartLocation?.let { (latitude, longitude) ->
                 pendingStartLocation = null
                 applyStartFromLocation(latitude, longitude)
-            }
-        }
-
-        // Safe Route Pro: when an SOS emergency is active, enter the
-        // emergency navigation mode (spec §12/§18). The SOS repository is
-        // injected per-region via the ViewModel Factory.
-        vmScope.launch {
-            val active = sosRepository.getActiveEmergency()
-            _uiState.update { it.copy(isSafeRouteProActive = active != null) }
-            // Observe changes — re-evaluate whenever the active emergency changes.
-            sosRepository.getActiveEmergency().collect { newActive ->
-                _uiState.update { it.copy(isSafeRouteProActive = newActive != null) }
             }
         }
     }
@@ -159,6 +145,16 @@ class RouteViewModel(
         findRoute(start, destination)
     }
 
+    /**
+     * Safe Route Pro (spec §12/§18): pushed in by the screen whenever it
+     * re-reads the active emergency. In this mode location tracking is more
+     * active and recalculation is faster, because the user is in an active
+     * emergency rather than planning a walk.
+     */
+    fun setSafeRouteProActive(active: Boolean) {
+        _uiState.update { it.copy(isSafeRouteProActive = active) }
+    }
+
     /** Selects the graph node nearest to the current location as the start. */
     fun setStartFromLocation(latitude: Double, longitude: Double) {
         val graph = _uiState.value.graph
@@ -196,7 +192,14 @@ class RouteViewModel(
             _uiState.update { it.copy(isOffRoute = true) }
 
             val now = System.currentTimeMillis()
-            if (now - lastAutoRerouteMs < AUTO_REROUTE_COOLDOWN_MS) return@launch
+            // In Safe Route Pro the user is in an active emergency, so
+            // recalculate far sooner than in normal planning mode.
+            val cooldown = if (_uiState.value.isSafeRouteProActive) {
+                PRO_REROUTE_COOLDOWN_MS
+            } else {
+                AUTO_REROUTE_COOLDOWN_MS
+            }
+            if (now - lastAutoRerouteMs < cooldown) return@launch
             lastAutoRerouteMs = now
 
             // Re-anchor to the current position and recalculate.
@@ -212,6 +215,8 @@ class RouteViewModel(
     private companion object {
         /** Minimum gap between automatic reroutes, so noise can't thrash the engine. */
         const val AUTO_REROUTE_COOLDOWN_MS = 30_000L
+        /** Faster cooldown while Safe Route Pro is active (spec §12/§18). */
+        const val PRO_REROUTE_COOLDOWN_MS = 8_000L
     }
 
     class Factory(private val routeRepository: RouteRepository) : ViewModelProvider.Factory {

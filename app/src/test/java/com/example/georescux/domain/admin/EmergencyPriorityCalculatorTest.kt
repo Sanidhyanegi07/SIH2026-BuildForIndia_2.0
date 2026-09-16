@@ -73,4 +73,23 @@ class EmergencyPriorityCalculatorTest {
         assertEquals(1, stats.unverifiedUserSosCount)
         assertEquals(1, stats.emergencyPriorityScore)
     }
+
+    /**
+     * The spec's worked example (§11.3): a Nainital district view with 17
+     * total SOS — 10 from verified users and 7 from unverified users —
+     * produces a priority score of 27. The raw count stays 17: it is the
+     * ground truth, the score is only a triage heuristic.
+     */
+    @Test
+    fun `spec Nainital example - 17 total, 10 verified, 7 unverified scores 27`() {
+        val dataset = List(10) { TestEmergency(isVerified = true) } +
+            List(7) { TestEmergency(isVerified = false) }
+
+        val stats = EmergencyPriorityCalculator.calculate(dataset)
+
+        assertEquals(17, stats.totalSosCount)
+        assertEquals(10, stats.verifiedUserSosCount)
+        assertEquals(7, stats.unverifiedUserSosCount)
+        assertEquals(27, stats.emergencyPriorityScore)
+    }
 }

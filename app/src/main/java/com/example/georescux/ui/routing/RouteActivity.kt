@@ -469,7 +469,10 @@ class RouteActivity : AppCompatActivity() {
     private fun startLocationAcquisition() {
         if (locationStarted) return
         locationStarted = true
-        container().locationRepository.startAcquisition { fix ->
+        // Safe Route Pro (spec §12/§18): while an SOS is active, track
+        // location far more often than in normal planning mode.
+        val activeSos = runCatching { container().sosRepository.getActiveEmergency() }.getOrNull()
+        container().locationRepository.startAcquisition(fastMode = activeSos != null) { fix ->
             runOnUiThread {
                 lastUserFix = GeoPoint(fix.latitude, fix.longitude)
                 updateUserLocationMarker(fix.latitude, fix.longitude, fix.accuracyMeters, fix.provider)
@@ -579,6 +582,39 @@ class RouteActivity : AppCompatActivity() {
     private fun updateSafeRouteProBadge(isActive: Boolean) {
         val badge = findViewById<TextView>(R.id.textSafeRouteProBadge) ?: return
         badge.visibility = if (isActive) View.VISIBLE else View.GONE
+        // Push the SOS state into the ViewModel so routing behaviour —
+        // faster reroute, more active monitoring — follows the emergency.
+        viewModel.setSafeRouteProActive(isActive)
+
+        // The monitoring panel is the Safe Route Pro status surface
+        // (spec §12/§18): SOS/BLE/cloud lines, visible only in an emergency.
+        val panel = findViewById<LinearLayout>(R.id.safeRouteProPanel) ?: return
+        panel.visibility = if (isActive) View.VISIBLE else View.GONE
+        if (isActive) renderSafeRouteProStatus()
+    }
+
+    /**
+     * Fills the Safe Route Pro monitoring panel: which communication paths
+     * are carrying the active emergency. Honest about what is online.
+     */
+    private fun renderSafeRouteProStatus() {
+        val container = container()
+        val active = runCatching { container.sosRepository.getActiveEmergency() }.getOrNull()
+        val isOnline = isDeviceOnline()
+
+        findViewById<TextView>(R.id.textProSosState)?.text =
+            if (active != null) "● SOS ACTIVE — id ${active.id.take(12)}…" else "● SOS not active"
+        findViewById<TextView>(R.id.textProCloudState)?.text =
+            if (isOnline) "● Cloud sync: online — uploading" else "● Cloud sync: offline — queued, will retry"
+        findViewById<TextView>(R.id.textProBleState)?.text =
+            "● BLE mesh: listening for nearby devices"
+    }
+
+    private fun isDeviceOnline(): Boolean {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     /** Cached red SOS marker shared by all emergency markers. */

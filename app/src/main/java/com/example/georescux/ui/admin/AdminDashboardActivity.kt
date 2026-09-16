@@ -61,6 +61,7 @@ class AdminDashboardActivity : AppCompatActivity() {
     private val incidentList = mutableListOf<IncidentItem>()
     private val verificationList = mutableListOf<VerificationRequestItem>()
     private var selectedRegion: com.example.georescux.domain.routing.MapRegion? = null
+    private var selectedDistrict: com.example.georescux.domain.admin.District? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,6 +89,7 @@ class AdminDashboardActivity : AppCompatActivity() {
             }
 
             val spinner = findViewById<android.widget.Spinner>(R.id.spinnerAdminRegion)
+            val districtSpinner = findViewById<android.widget.Spinner>(R.id.spinnerAdminDistrict)
             val regions = listOf("All Regions") + MapRegionCatalog.availableRegions.map { it.displayName }
             val adapter = android.widget.ArrayAdapter(this@AdminDashboardActivity, android.R.layout.simple_spinner_dropdown_item, regions)
             spinner.adapter = adapter
@@ -95,6 +97,7 @@ class AdminDashboardActivity : AppCompatActivity() {
                 override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
                     val selectedName = regions[position]
                     selectedRegion = if (selectedName == "All Regions") null else MapRegionCatalog.availableRegions.find { it.displayName == selectedName }
+                    populateDistrictSpinner(districtSpinner, selectedRegion?.id)
                     renderCurrentTabContent()
                 }
                 override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
@@ -146,8 +149,33 @@ class AdminDashboardActivity : AppCompatActivity() {
         btnVerifications.setOnClickListener { currentTab = AdminTab.VERIFICATIONS; updateTabStyles() }
     }
 
-    private fun setupActionButtons() {
-        findViewById<Button>(R.id.buttonAddHazard).setOnClickListener {
+    /**
+     * §11.2: populates the district drill-down from the selected state.
+     * "All Districts" keeps the state-wide view; choosing a district scopes
+     * the emergency feed and the priority statistics to that district.
+     */
+    private fun populateDistrictSpinner(
+        districtSpinner: android.widget.Spinner,
+        stateId: String?,
+    ) {
+        val districts = if (stateId == null) emptyList()
+            else com.example.georescux.domain.admin.DistrictCatalog.districtsForState(stateId)
+        val labels = listOf("All Districts") + districts.map { it.displayName }
+        districtSpinner.adapter = android.widget.ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, labels
+        )
+        districtSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val name = labels[position]
+                selectedDistrict = districts.firstOrNull { it.displayName == name }
+                refreshPriorityStats()
+                renderCurrentTabContent()
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+    }
+
+    private fun setupActionButtons() {        findViewById<Button>(R.id.buttonAddHazard).setOnClickListener {
             showAddHazardDialog()
         }
         findViewById<Button>(R.id.buttonBlockRoad).setOnClickListener {
@@ -167,23 +195,19 @@ class AdminDashboardActivity : AppCompatActivity() {
                 syncStatusText.text = "Sync: Realtime Active"
 
                 emergencyList.clear()
-                var activeCount = 0
-                var totalCount = 0
 
                 for (userSnap in snapshot.children) {
                     val uid = userSnap.key ?: "unknown"
                     val isVerified = userSnap.child("isVerified").getValue(Boolean::class.java) ?: false
                     for (alertSnap in userSnap.children) {
                         if (alertSnap.key == "isVerified") continue
-                        
-                        totalCount++
+
                         val startedAtMs = alertSnap.child("startedAtMs").getValue(Long::class.java) ?: 0L
                         val stoppedAtMs = alertSnap.child("stoppedAtMs").getValue(Long::class.java)
                         val status = alertSnap.child("status").getValue(String::class.java)
                             ?: if (stoppedAtMs == null) "ACTIVE" else "COMPLETED"
 
                         val isActive = stoppedAtMs == null || status == "ACTIVE"
-                        if (isActive) activeCount++
 
                         val locSnap = alertSnap.child("location")
                         val lat = locSnap.child("latitude").getValue(Double::class.java)
@@ -212,12 +236,7 @@ class AdminDashboardActivity : AppCompatActivity() {
                     }
                 }
 
-                val stats = EmergencyPriorityCalculator.calculate(emergencyList)
-                findViewById<TextView>(R.id.textViewTotalSosCount).text = stats.totalSosCount.toString()
-                findViewById<TextView>(R.id.textViewVerifiedSosCount).text = stats.verifiedUserSosCount.toString()
-                findViewById<TextView>(R.id.textViewUnverifiedSosCount).text = stats.unverifiedUserSosCount.toString()
-                findViewById<TextView>(R.id.textViewPriorityScore).text = stats.emergencyPriorityScore.toString()
-                findViewById<TextView>(R.id.textViewActiveSosCount).text = activeCount.toString()
+                refreshPriorityStats()
 
                 if (currentTab == AdminTab.EMERGENCIES) renderCurrentTabContent()
             }
@@ -307,6 +326,37 @@ class AdminDashboardActivity : AppCompatActivity() {
         })
     }
 
+    /**
+     * Recomputes the prioritization statistics over the emergencies that fall
+     * inside the currently selected region and district (spec §11.2/§11.3).
+     * With no selection, the numbers cover every recorded SOS.
+     */
+    private fun refreshPriorityStats() {
+        val scoped = emergencyList.filter { em ->
+            inSelectedScope(em.latitude, em.longitude)
+        }
+        val stats = EmergencyPriorityCalculator.calculate(scoped)
+        findViewById<TextView>(R.id.textViewTotalSosCount).text = stats.totalSosCount.toString()
+        findViewById<TextView>(R.id.textViewVerifiedSosCount).text = stats.verifiedUserSosCount.toString()
+        findViewById<TextView>(R.id.textViewUnverifiedSosCount).text = stats.unverifiedUserSosCount.toString()
+        findViewById<TextView>(R.id.textViewPriorityScore).text = stats.emergencyPriorityScore.toString()
+        findViewById<TextView>(R.id.textViewActiveSosCount).text =
+            scoped.count { it.isActive }.toString()
+    }
+
+    /** True when a position lies inside the selected region and district (either may be "all"). */
+    private fun inSelectedScope(latitude: Double?, longitude: Double?): Boolean {
+        if (latitude == null || longitude == null) return false
+        val region = selectedRegion
+        if (region != null && (
+                latitude !in region.minLatitude..region.maxLatitude ||
+                longitude !in region.minLongitude..region.maxLongitude
+            )) return false
+        val district = selectedDistrict
+        if (district != null && !district.contains(latitude, longitude)) return false
+        return true
+    }
+
     private fun updateHazardsCount() {
         val total = hazardList.size + blockedRoadList.size
         findViewById<TextView>(R.id.textViewActiveHazardsCount).text = total.toString()
@@ -320,13 +370,7 @@ class AdminDashboardActivity : AppCompatActivity() {
         when (currentTab) {
             AdminTab.EMERGENCIES -> {
                 val filteredList = emergencyList.filter { em ->
-                    if (selectedRegion == null) true
-                    else {
-                        val lat = em.latitude ?: return@filter false
-                        val lng = em.longitude ?: return@filter false
-                        lat in selectedRegion!!.minLatitude..selectedRegion!!.maxLatitude &&
-                        lng in selectedRegion!!.minLongitude..selectedRegion!!.maxLongitude
-                    }
+                    inSelectedScope(em.latitude, em.longitude)
                 }
                 sectionTitle.text = "ACTIVE EMERGENCY ALERTS (${filteredList.size})"
                 if (filteredList.isEmpty()) {
@@ -463,10 +507,24 @@ class AdminDashboardActivity : AppCompatActivity() {
         card.findViewById<TextView>(R.id.textAlertDate).text = "🛡️ Verification Request · ${req.status}"
         card.findViewById<TextView>(R.id.textAlertDuration).text = "User: ${req.name} (UID: ${req.uid})\nSubmitted: $dateStr"
         card.findViewById<TextView>(R.id.textAlertLocation).apply {
-            text = "Approve Identity"
-            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
-            setOnClickListener {
-                approveVerification(req.uid)
+            // §11.4: only a pending submission needs a decision. An already
+            // approved/rejected request shows its outcome and no action.
+            when (req.status) {
+                "VERIFIED" -> {
+                    text = "Identity approved — contributing 2 points to priority score"
+                    setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
+                }
+                "REJECTED" -> {
+                    text = "Identity rejected — contributing 1 point to priority score"
+                    setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.text_error))
+                }
+                else -> {
+                    text = "Review Identity (Approve / Reject)"
+                    setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.violet_accent))
+                    setOnClickListener {
+                        showVerificationReviewDialog(req.uid, req.name)
+                    }
+                }
             }
         }
         return card
@@ -623,28 +681,52 @@ class AdminDashboardActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun approveVerification(uid: String) {
-        lifecycleScope.launch {
-            try {
-                // Update the verification request status
-                database.getReference("verification_requests")
-                    .child(uid)
-                    .child("status")
-                    .setValue("VERIFIED")
-                    .await()
-                
-                // Also update the user's root node in sos_alerts to apply priority score universally
-                database.getReference("sos_alerts")
-                    .child(uid)
-                    .child("isVerified")
-                    .setValue(true)
-                    .await()
-                    
-                Toast.makeText(this@AdminDashboardActivity, "User verified successfully", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(this@AdminDashboardActivity, "Failed to approve: ${e.message}", Toast.LENGTH_SHORT).show()
+    /**
+     * §11.4 identity review: an administrator decides a pending submission.
+     * Only APPROVE sets the user's verified flag — a rejection records the
+     * decision but must never raise the priority weighting.
+     */
+    private fun showVerificationReviewDialog(uid: String, name: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Review identity: $name")
+            .setMessage("Approving marks this user verified (each SOS counts 2 points). " +
+                "Rejecting keeps them unverified (each SOS counts 1 point).")
+            .setPositiveButton("Approve") { _, _ ->
+                lifecycleScope.launch {
+                    try {
+                        database.getReference("verification_requests").child(uid).child("status")
+                            .setValue("VERIFIED").await()
+                        // Only approval changes the verification status used by
+                        // the prioritization heuristic (§11.3/§11.4).
+                        database.getReference("sos_alerts").child(uid).child("isVerified")
+                            .setValue(true).await()
+                        Toast.makeText(this@AdminDashboardActivity,
+                            "Identity approved", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@AdminDashboardActivity,
+                            "Failed to approve: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
-        }
+            .setNegativeButton("Reject") { _, _ ->
+                lifecycleScope.launch {
+                    try {
+                        database.getReference("verification_requests").child(uid).child("status")
+                            .setValue("REJECTED").await()
+                        // Rejection must NOT raise the weighting; ensure the flag
+                        // is false rather than assuming a default.
+                        database.getReference("sos_alerts").child(uid).child("isVerified")
+                            .setValue(false).await()
+                        Toast.makeText(this@AdminDashboardActivity,
+                            "Identity rejected", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@AdminDashboardActivity,
+                            "Failed to reject: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNeutralButton("Cancel", null)
+            .show()
     }
 
     private data class EmergencyItem(

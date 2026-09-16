@@ -76,6 +76,14 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:backgroundTint="@color/text_primary"/>
+
+            <!-- §11.2 district drill-down: populated from the selected state. -->
+            <Spinner
+                android:id="@+id/spinnerAdminDistrict"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:backgroundTint="@color/text_primary"/>
         </LinearLayout>
 
         <!-- Operational Status & Sync Monitor Card -->
@@ -144,7 +152,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Total SOS"
+                            android:text="Total SOS (raw count = ground truth)"
                             android:textColor="@color/text_muted"
                             android:textSize="11sp" />
                     </LinearLayout>
@@ -213,7 +221,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Priority Score"
+                            android:text="Priority Score (internal heuristic, not severity)"
                             android:textColor="@color/text_muted"
                             android:textSize="11sp" />
                     </LinearLayout>

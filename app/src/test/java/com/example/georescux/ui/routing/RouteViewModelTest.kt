@@ -290,4 +290,47 @@ class RouteViewModelTest {
         assertEquals("a", viewModel.uiState.value.startNodeId) // manual selection wins
         assertEquals(listOf("a", "b", "c"), viewModel.uiState.value.route?.nodeIds)
     }
+
+    // ---- Safe Route Pro (spec §12/§18) ----
+
+    @Test
+    fun `safe route pro is inactive by default and is switched on by the screen`() = vmTest {
+        val viewModel = loadedViewModel(FakeRouteRepository(graph()))
+
+        assertFalse(viewModel.uiState.value.isSafeRouteProActive)
+
+        viewModel.setSafeRouteProActive(true)
+        assertTrue(viewModel.uiState.value.isSafeRouteProActive)
+
+        viewModel.setSafeRouteProActive(false)
+        assertFalse(viewModel.uiState.value.isSafeRouteProActive)
+    }
+
+    @Test
+    fun `off-route detection marks the state when the fix is far from the route`() = vmTest {
+        val viewModel = loadedViewModel(FakeRouteRepository(graph()))
+        viewModel.findRoute("a", "c")
+        advanceUntilIdle()
+
+        // Node a sits at (0,0); a fix several degrees away is far off-route.
+        viewModel.onLocationUpdate(5.0, 5.0)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isOffRoute)
+    }
+
+    @Test
+    fun `on-route fix clears the off-route flag`() = vmTest {
+        val viewModel = loadedViewModel(FakeRouteRepository(graph()))
+        viewModel.findRoute("a", "c")
+        advanceUntilIdle()
+
+        viewModel.onLocationUpdate(5.0, 5.0) // off-route
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isOffRoute)
+
+        viewModel.onLocationUpdate(0.0, 0.0) // back on the route at node a
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isOffRoute)
+    }
 }
