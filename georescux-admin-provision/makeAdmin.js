@@ -7,7 +7,7 @@ initializeApp({
   credential: cert(serviceAccount)
 });
 
-const targetUid = "oJDDWyVlmNPMyfNSFQqptcActiF2";
+const targetUid = "bKkjL4ObTDVfh8P9BZWq7nzgjdf2";
 
 getAuth()
   .setCustomUserClaims(targetUid, { admin: true })

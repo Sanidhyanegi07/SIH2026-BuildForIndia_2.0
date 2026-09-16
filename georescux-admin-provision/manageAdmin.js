@@ -18,7 +18,7 @@ initializeApp({
   credential: cert(serviceAccount)
 });
 
-const DEFAULT_ADMIN_UID = "oJDDWyVlmNPMyfNSFQqptcActiF2";
+const DEFAULT_ADMIN_UID = "bKkjL4ObTDVfh8P9BZWq7nzgjdf2";
 const command = process.argv[2] || "verify";
 const targetUid = process.argv[3] || DEFAULT_ADMIN_UID;
 

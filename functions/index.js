@@ -7,7 +7,9 @@ admin.initializeApp();
  * Known bootstrap admin UID provisioned during initial setup.
  * All subsequent admin promotions require existing admin privileges.
  */
-const BOOTSTRAP_ADMIN_UID = "oJDDWyVlmNPMyfNSFQqptcActiF2";
+const BOOTSTRAP_ADMIN_UIDS = [
+  "bKkjL4ObTDVfh8P9BZWq7nzgjdf2"
+];
 
 /**
  * Assigns or removes the admin custom claim on a target UID.
@@ -27,7 +29,7 @@ exports.setAdminClaim = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const isBootstrapTarget = targetUid === BOOTSTRAP_ADMIN_UID;
+  const isBootstrapTarget = BOOTSTRAP_ADMIN_UIDS.includes(targetUid);
   const callerIsAdmin = context.auth && context.auth.token && context.auth.token.admin === true;
 
   if (!isBootstrapTarget && !callerIsAdmin) {
