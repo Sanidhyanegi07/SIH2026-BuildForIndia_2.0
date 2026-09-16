@@ -89,7 +89,16 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun openHome() {
-        startActivity(Intent(this, HomeActivity::class.java))
+        val container = (application as GeoRescuXApplication).appContainer
+        // Spec §6: a normal user's first login presents region selection so
+        // maps and routing run from the right offline package. Returning
+        // users who already chose (or were auto-switched by GPS) go straight
+        // to the dashboard.
+        if (!container.hasSelectedRegion) {
+            startActivity(Intent(this, com.example.georescux.ui.region.RegionSelectionActivity::class.java))
+        } else {
+            startActivity(Intent(this, HomeActivity::class.java))
+        }
         // Close Login so that pressing Back does not return to the login form.
         finish()
     }

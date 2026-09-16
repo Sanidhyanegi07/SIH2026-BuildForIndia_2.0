@@ -40,6 +40,17 @@
       }
     },
 
+    "verification_requests": {
+      ".read": "auth != null && auth.token.admin == true",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.admin == true)",
+        ".write": "auth != null && (auth.uid == $uid || auth.token.admin == true)",
+        "status": {
+          ".validate": "auth.token.admin == true || newData.val() == 'PENDING'"
+        }
+      }
+    },
+
     "admin_data": {
       ".read": "auth != null && auth.token.admin == true",
       ".write": "auth != null && auth.token.admin == true"

@@ -49,6 +49,7 @@ class UttarakhandDevicePerfTest {
             "Dehradun→Haldwani" to (30.3165 to 78.0322),
             "Rishikesh→Joshimath" to (30.0869 to 78.2676),
         )
+        
         val destinations = listOf(29.2183 to 79.5130, 30.4424 to 79.5572)
 
         var totalMs = 0L

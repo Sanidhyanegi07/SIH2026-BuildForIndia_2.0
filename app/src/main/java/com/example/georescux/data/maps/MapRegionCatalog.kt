@@ -1,6 +1,8 @@
 package com.example.georescux.data.maps
 
+import android.content.res.AssetManager
 import com.example.georescux.domain.routing.MapRegion
+import java.io.IOException
 
 /**
  * Lists the map regions bundled with the application.
@@ -64,6 +66,34 @@ object MapRegionCatalog {
     val availableRegions: List<MapRegion> = listOf(sampleRegion, uttarakhand, himachalPradesh, haryana, uttarPradesh)
 
     fun byId(id: String): MapRegion? = bundledRegions.firstOrNull { it.id == id } ?: availableRegions.firstOrNull { it.id == id }
+
+    /**
+     * True when this region's offline routing graph is actually present on
+     * this device. Bundled regions ship inside the APK; regions that are
+     * merely listed in [availableRegions] are future downloads and must
+     * never be silently substituted with the synthetic demo graph.
+     */
+    fun isGraphInstalled(assets: AssetManager, region: MapRegion): Boolean = try {
+        assets.open(region.graphAssetPath).close(); true
+    } catch (_: IOException) {
+        false
+    }
+
+    /**
+     * True when offline *rendering* data (vector basemap or raster tile
+     * archive) is present. A region can have an installed routing graph but
+     * no offline map — in that state routing works but the map layer needs
+     * a connection. Checked against the real asset rather than the catalog
+     * path so a missing file is never reported as available.
+     */
+    fun isOfflineMapInstalled(assets: AssetManager, region: MapRegion): Boolean {
+        if (region.tileAssetPath.isBlank()) return false
+        return try {
+            assets.open(region.tileAssetPath).close(); true
+        } catch (_: IOException) {
+            false
+        }
+    }
 
     /**
      * The bundled region containing the given position, or null when the

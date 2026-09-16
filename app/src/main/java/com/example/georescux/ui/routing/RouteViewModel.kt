@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.georescux.domain.repository.RouteRepository
 import com.example.georescux.domain.routing.EvacuationRoute
 import com.example.georescux.domain.routing.NearestNode
+import com.example.georescux.domain.routing.RouteDeviationDetector
 import com.example.georescux.domain.routing.RouteGraph
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +31,10 @@ data class RouteUiState(
     val selectionRequired: Boolean = false,
     /** Stage 7B-4: the regional graph (megabyte-scale) is being loaded off the main thread. */
     val graphLoading: Boolean = true,
+    /** Live GPS is far from the current route — a recalculation is running or needed (spec §16). */
+    val isOffRoute: Boolean = false,
+    /** Safe Route Pro is active (SOS-linked emergency navigation mode, spec §12/§18). */
+    val isSafeRouteProActive: Boolean = false,
 )
 
 /**
@@ -46,6 +51,8 @@ class RouteViewModel(
     private val routeRepository: RouteRepository,
     /** Injected for tests; production runs every heavy step off the main thread. */
     private val loadDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /** Provides access to the SOS repository for Safe Route Pro activation. */
+    private val sosRepository: SosRepository = container().sosRepository,
 ) : ViewModel() {
 
     // Same explicit-scope pattern as RouteActivity's uiScope (the project
@@ -57,6 +64,9 @@ class RouteViewModel(
 
     private var pendingStartLocation: Pair<Double, Double>? = null
 
+    /** Cooldown so a stream of noisy fixes cannot trigger reroute thrash (spec §16). */
+    private var lastAutoRerouteMs: Long = 0L
+
     init {
         vmScope.launch {
             val graph = routeRepository.getGraph()
@@ -66,6 +76,18 @@ class RouteViewModel(
             pendingStartLocation?.let { (latitude, longitude) ->
                 pendingStartLocation = null
                 applyStartFromLocation(latitude, longitude)
+            }
+        }
+
+        // Safe Route Pro: when an SOS emergency is active, enter the
+        // emergency navigation mode (spec §12/§18). The SOS repository is
+        // injected per-region via the ViewModel Factory.
+        vmScope.launch {
+            val active = sosRepository.getActiveEmergency()
+            _uiState.update { it.copy(isSafeRouteProActive = active != null) }
+            // Observe changes — re-evaluate whenever the active emergency changes.
+            sosRepository.getActiveEmergency().collect { newActive ->
+                _uiState.update { it.copy(isSafeRouteProActive = newActive != null) }
             }
         }
     }
@@ -153,9 +175,44 @@ class RouteViewModel(
         _uiState.update { it.copy(startNodeId = nearest.id) }
     }
 
+    /**
+     * Called with every live fix while a route is active. When the user has
+     * drifted off the route (spec §16), the route is recalculated from the
+     * current position instead of waiting for the manual button. Guarded by
+     * a cooldown: rerouting is real work, and a poor fix should not start a
+     * recalculation storm.
+     */
+    fun onLocationUpdate(latitude: Double, longitude: Double) {
+        val state = _uiState.value
+        val graph = state.graph ?: return
+        val route = state.route ?: return
+
+        vmScope.launch {
+            val offRoute = RouteDeviationDetector.isOffRoute(latitude, longitude, route, graph)
+            if (!offRoute) {
+                _uiState.update { it.copy(isOffRoute = false) }
+                return@launch
+            }
+            _uiState.update { it.copy(isOffRoute = true) }
+
+            val now = System.currentTimeMillis()
+            if (now - lastAutoRerouteMs < AUTO_REROUTE_COOLDOWN_MS) return@launch
+            lastAutoRerouteMs = now
+
+            // Re-anchor to the current position and recalculate.
+            val newStart = NearestNode.find(graph, latitude, longitude) ?: return@launch
+            reroute(fallbackStartNodeId = newStart.id)
+        }
+    }
+
     /** The deterministic destination default used by the destination spinner. */
     private fun firstSafeHavenId(graph: RouteGraph?): String? =
         graph?.nodes?.firstOrNull { it.isSafeHaven }?.id
+
+    private companion object {
+        /** Minimum gap between automatic reroutes, so noise can't thrash the engine. */
+        const val AUTO_REROUTE_COOLDOWN_MS = 30_000L
+    }
 
     class Factory(private val routeRepository: RouteRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

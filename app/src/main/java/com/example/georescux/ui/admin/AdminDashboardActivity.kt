@@ -217,6 +217,7 @@ class AdminDashboardActivity : AppCompatActivity() {
                 findViewById<TextView>(R.id.textViewVerifiedSosCount).text = stats.verifiedUserSosCount.toString()
                 findViewById<TextView>(R.id.textViewUnverifiedSosCount).text = stats.unverifiedUserSosCount.toString()
                 findViewById<TextView>(R.id.textViewPriorityScore).text = stats.emergencyPriorityScore.toString()
+                findViewById<TextView>(R.id.textViewActiveSosCount).text = activeCount.toString()
 
                 if (currentTab == AdminTab.EMERGENCIES) renderCurrentTabContent()
             }
@@ -275,6 +276,11 @@ class AdminDashboardActivity : AppCompatActivity() {
                     val timestamp = child.child("timestampMs").getValue(Long::class.java) ?: System.currentTimeMillis()
                     incidentList.add(IncidentItem(id, type, desc, status, timestamp))
                 }
+                // An incident is "active" until it reaches a terminal state.
+                val activeIncidents = incidentList.count {
+                    it.status !in setOf("RESOLVED", "CLOSED", "CANCELLED")
+                }
+                findViewById<TextView>(R.id.textViewActiveIncidentsCount).text = activeIncidents.toString()
                 if (currentTab == AdminTab.INCIDENTS) renderCurrentTabContent()
             }
 
@@ -292,6 +298,8 @@ class AdminDashboardActivity : AppCompatActivity() {
                     val timestamp = child.child("timestampMs").getValue(Long::class.java) ?: System.currentTimeMillis()
                     verificationList.add(VerificationRequestItem(uid, name, status, timestamp))
                 }
+                val pending = verificationList.count { it.status == "PENDING" }
+                findViewById<TextView>(R.id.textViewPendingVerificationCount).text = pending.toString()
                 if (currentTab == AdminTab.VERIFICATIONS) renderCurrentTabContent()
             }
 
@@ -301,6 +309,7 @@ class AdminDashboardActivity : AppCompatActivity() {
 
     private fun updateHazardsCount() {
         val total = hazardList.size + blockedRoadList.size
+        findViewById<TextView>(R.id.textViewActiveHazardsCount).text = total.toString()
     }
 
     private fun renderCurrentTabContent() {

@@ -66,11 +66,13 @@ class SosViewModelLocationTest {
 
     private class FakeLocationRepository : LocationRepository {
         var started = false
+        var fastModeRequested: Boolean? = null
         var stopped = false
         var onLocation: ((SosLocation) -> Unit)? = null
 
-        override fun startAcquisition(onLocation: (SosLocation) -> Unit) {
+        override fun startAcquisition(fastMode: Boolean, onLocation: (SosLocation) -> Unit) {
             started = true
+            fastModeRequested = fastMode
             this.onLocation = onLocation
         }
 

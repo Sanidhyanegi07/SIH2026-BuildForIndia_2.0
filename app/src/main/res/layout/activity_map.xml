@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_app"
+    android:orientation="vertical">
+
+    <include layout="@layout/view_top_bar" />
+
+    <TextView
+        android:id="@+id/textMapRegion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="18dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/textMapConnectivity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="2dp"
+        android:text="@string/connection_checking"
+        android:textColor="@color/mesh_sky"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="10dp">
+
+        <org.osmdroid.views.MapView
+            android:id="@+id/mapView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="12dp"
+            android:orientation="vertical">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/buttonMyLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:contentDescription="@string/map_my_location"
+                android:src="@drawable/ic_nav_map"
+                app:backgroundTint="@color/bg_card"
+                app:tint="@color/mesh_sky" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/buttonZoomIn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:contentDescription="Zoom in"
+                android:src="@drawable/ic_zoom_in"
+                app:backgroundTint="@color/bg_card"
+                app:tint="@color/text_primary" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/buttonZoomOut"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="Zoom out"
+                android:src="@drawable/ic_zoom_out"
+                app:backgroundTint="@color/bg_card"
+                app:tint="@color/text_primary" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textMapCacheState"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_badge_pill"
+            android:backgroundTint="@color/bg_card_secondary"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="Loading Map..."
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/textNoOfflineMap"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="10dp"
+        android:text="@string/map_offline_map_unavailable"
+        android:textColor="@color/hazard_orange"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonOpenSafeRoute"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_button_violet"
+        android:text="@string/map_open_safe_route"
+        android:textColor="@color/white"
+        app:backgroundTint="@null" />
+
+    <include layout="@layout/view_bottom_nav" />
+</LinearLayout>

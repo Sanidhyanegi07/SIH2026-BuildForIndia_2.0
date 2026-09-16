@@ -49,6 +49,9 @@ xmlns:tools="http://schemas.android.com/tools">
     <activity android:name=".ui.auth.LoginActivity" android:exported="false" />
     <activity android:name=".ui.auth.RegisterActivity" android:exported="false" />
     <activity android:name=".ui.home.HomeActivity" android:exported="false" />
+    <activity android:name=".ui.map.MapActivity" android:exported="false" />
+    <activity android:name=".ui.help.HelpActivity" android:exported="false" />
+    <activity android:name=".ui.region.RegionSelectionActivity" android:exported="false" />
     <activity android:name=".ui.contacts.ContactsActivity" android:exported="false" />
     <activity android:name=".ui.alerts.AlertsActivity" android:exported="false" />
     <activity android:name=".ui.routing.RouteActivity" android:exported="false" />

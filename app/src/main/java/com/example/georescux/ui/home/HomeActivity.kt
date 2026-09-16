@@ -103,6 +103,7 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var textRelayForwardedCount: TextView
     private lateinit var textRelayPendingSync: TextView
     private var relayStatusJob: Job? = null
+    private lateinit var connectivityBadge: com.example.georescux.ui.common.ConnectivityBadge
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -113,6 +114,13 @@ class HomeActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.textViewUserEmail).text =
             "Logged in as: ${authRepository.currentUserEmail ?: "unknown user"}"
+
+        // Live connection indicator (spec §8): ONLINE only when cloud sync is
+        // reachable; OFFLINE makes clear the app itself keeps working.
+        connectivityBadge = com.example.georescux.ui.common.ConnectivityBadge(this)
+        connectivityBadge.bind(findViewById(R.id.textViewConnectionStatus))
+
+        com.example.georescux.ui.common.HelpLauncher.bind(this)
 
         findViewById<Button>(R.id.buttonLogout).setOnClickListener {
             authRepository.signOut()
@@ -158,6 +166,14 @@ class HomeActivity : AppCompatActivity() {
         findViewById<View>(R.id.tileProfile).setOnClickListener {
             startActivity(Intent(this, com.example.georescux.ui.profile.ProfileActivity::class.java))
         }
+
+        // Primary bottom navigation: HOME · MAP · ALERTS · PROFILE (spec §9).
+        com.example.georescux.ui.common.BottomNav.bind(this, R.id.nav_home)
+    }
+
+    override fun onDestroy() {
+        connectivityBadge.unbind()
+        super.onDestroy()
     }
 
     private fun setupSosButton() {

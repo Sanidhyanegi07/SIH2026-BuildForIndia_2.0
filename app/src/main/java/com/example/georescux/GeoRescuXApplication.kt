@@ -113,12 +113,24 @@ class AppContainer(context: Context) {
     var activeRegionId: String = mapRegionSelection.load() ?: MapRegionCatalog.sampleRegion.id
         private set
 
+    /** True once the user has explicitly chosen a region (first-login flow, spec §6). */
+    val hasSelectedRegion: Boolean get() = mapRegionSelection.load() != null
+
     private val routeRepositories = mutableMapOf<String, RouteRepository>()
 
     fun routeRepositoryFor(regionId: String): RouteRepository = synchronized(routeRepositories) {
         routeRepositories.getOrPut(regionId) {
             val region = MapRegionCatalog.byId(regionId)
                 ?: throw IllegalArgumentException("Unknown map region: $regionId")
+            // Guard: a region listed in the catalog but whose offline graph
+            // is not installed on this device must never fall back to the
+            // synthetic demo graph — that would silently route the user over
+            // a fake road network hundreds of kilometres away.
+            if (!MapRegionCatalog.isGraphInstalled(appContext.assets, region)) {
+                throw IllegalStateException(
+                    "Region '${region.displayName}' routing data is not installed on this device.",
+                )
+            }
             RouteRepositoryImpl(
                 store = routeGraphStore,
                 activeRegionId = regionId,
@@ -132,7 +144,8 @@ class AppContainer(context: Context) {
 
     /** Switches the active region (manual selection or GPS-based). */
     fun setActiveRegion(regionId: String): Boolean {
-        MapRegionCatalog.byId(regionId) ?: return false
+        val region = MapRegionCatalog.byId(regionId) ?: return false
+        if (!MapRegionCatalog.isGraphInstalled(appContext.assets, region)) return false
         mapRegionSelection.save(regionId)
         activeRegionId = regionId
         return true

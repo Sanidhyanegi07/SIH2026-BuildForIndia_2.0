@@ -24,7 +24,8 @@ import com.example.georescux.R
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.example.georescux.data.maps.PlaceEntry
 import com.example.georescux.data.maps.PlaceIndex
-import com.example.georescux.data.maps.TileArchiveInstaller
+import com.example.georescux.ui.common.OfflineMapSetup
+import com.example.georescux.domain.routing.EtaEstimator
 import com.example.georescux.domain.routing.NearestNode
 import com.example.georescux.domain.routing.RouteGraph
 import kotlinx.coroutines.CoroutineScope
@@ -97,26 +98,13 @@ class RouteActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val osmdroidBase = File(filesDir, "osmdroid")
-        Configuration.getInstance().osmdroidBasePath = osmdroidBase
-        Configuration.getInstance().osmdroidTileCache = File(osmdroidBase, "tiles")
-        Configuration.getInstance().userAgentValue = "GeoRescuX/1.0 (Android; Emergency Rescue; contact: support@georescux.org)"
-        // Stage 9/Phase 5: Bounded tile storage to prevent uncontrolled device cache growth
-        Configuration.getInstance().tileFileSystemCacheMaxBytes = 100L * 1024 * 1024
-        Configuration.getInstance().tileFileSystemCacheTrimBytes = 80L * 1024 * 1024
+        OfflineMapSetup.prepareOsmdroid(this)
 
         setContentView(R.layout.activity_route)
-
-        // Initialize Mapsforge graphic factory
-        AndroidGraphicFactory.createInstance(this.application)
 
         val container = container()
         activeRegion = MapRegionCatalog.byId(container.activeRegionId) ?: MapRegionCatalog.sampleRegion
         bindViewModel()
-
-        if (activeRegion.tileAssetPath.isNotBlank()) {
-            TileArchiveInstaller.ensureExtracted(this, activeRegion)
-        }
 
         findViewById<TextView>(R.id.textRegionSubtitle).text =
             "Offline evacuation routing — ${activeRegion.displayName}"
@@ -161,58 +149,12 @@ class RouteActivity : AppCompatActivity() {
             mapView.controller.zoomOut()
         }
 
-        // Find Mapsforge offline vector map file or fallback to SQLite archive.
-        val expectedArchive = File(osmdroidBase, "${activeRegion.id}-tiles.sqlite")
-        val expectedZip = File(osmdroidBase, "${activeRegion.id}-tiles.zip")
-        val expectedMap = File(osmdroidBase, "${activeRegion.id}-tiles.map")
-        val mapCandidates = listOf(
-            expectedMap,
-            File(File(filesDir, "output/${activeRegion.id}"), "state.map"),
-            File(File(filesDir, "maps/${activeRegion.id}"), "state.map"),
-            File(File(getExternalFilesDir(null), "output/${activeRegion.id}"), "state.map"),
-            File(File(File(System.getProperty("user.dir") ?: "").parentFile ?: filesDir, "output/${activeRegion.id}"), "state.map")
-        )
-        val mapFile = mapCandidates.firstOrNull { it.exists() }
-
-        if (mapFile != null) {
-            // OSMARENDER = the classic fully-colored OSM style
-            val forge = MapsForgeTileSource.createFromFiles(
-                arrayOf(mapFile), InternalRenderTheme.OSMARENDER, "RenderTheme.OSMARENDER"
-            )
-            val provider = MapsForgeTileProvider(
-                SimpleRegisterReceiver(this),
-                forge, null
-            )
-            mapView.tileProvider = provider
-            mapView.setUseDataConnection(false)
-            mapCacheBadge?.text = "Offline Vector Map"
-            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
-        } else if (expectedArchive.exists() || expectedZip.exists()) {
-            // Bundled offline tile archive: provider in sqlite is "${activeRegion.id}-offline"
-            mapView.setUseDataConnection(false)
-            val tileSourceName = "${activeRegion.id}-offline"
-            mapView.setTileSource(
-                XYTileSource(tileSourceName, 1, 20, 256, ".png", emptyArray())
-            )
-            mapCacheBadge?.text = "Offline SQLite Map"
-            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
-        } else {
-            // Standard OSM tile source with on-device caching when no bundled offline package
-            mapView.setUseDataConnection(true)
-            mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-            mapCacheBadge?.text = "OSM Mapnik (Cached)"
-            findViewById<TextView>(R.id.textViewNoMapData).visibility = View.GONE
-        }
-        // State-scale regions frame the whole area; the small sample region
-        // keeps its street-level default.
-        val regionLatSpan = activeRegion.maxLatitude - activeRegion.minLatitude
-        mapView.controller.setZoom(if (regionLatSpan > 1.0) 7.5 else 15.5)
-        mapView.controller.setCenter(
-            GeoPoint(
-                (activeRegion.minLatitude + activeRegion.maxLatitude) / 2,
-                (activeRegion.minLongitude + activeRegion.maxLongitude) / 2
-            )
-        )
+        // Shared three-tier offline tile strategy (vector → SQLite archive →
+        // cached online), identical to the Map screen.
+        val mapResult = OfflineMapSetup.configure(this, mapView, activeRegion)
+        mapCacheBadge?.text = mapResult.tier.badgeText
+        findViewById<TextView>(R.id.textViewNoMapData).visibility =
+            if (mapResult.isOffline) View.GONE else View.VISIBLE
 
         val startEditText = findViewById<EditText>(R.id.editTextStartNode)
         val destinationEditText = findViewById<EditText>(R.id.editTextDestinationNode)
@@ -535,7 +477,14 @@ class RouteActivity : AppCompatActivity() {
                 // Stage 7B-4 region selection: a fix inside another bundled
                 // region switches the active region and rebinds the screen.
                 val fixRegion = MapRegionCatalog.regionForLocation(fix.latitude, fix.longitude)
-                if (fixRegion != null && fixRegion.id != container().activeRegionId) {
+                if (fixRegion == null) {
+                    // Spec §17: the fix lies outside every downloaded package.
+                    // Do not snap a start node hundreds of kilometres away —
+                    // say so clearly instead of pretending routing works here.
+                    showBoundaryNotice()
+                    return@runOnUiThread
+                }
+                if (fixRegion.id != container().activeRegionId) {
                     container().setActiveRegion(fixRegion.id)
                     Toast.makeText(
                         this,
@@ -545,9 +494,22 @@ class RouteActivity : AppCompatActivity() {
                     recreate()
                     return@runOnUiThread
                 }
+                hideBoundaryNotice()
                 viewModel.setStartFromLocation(fix.latitude, fix.longitude)
+                // Spec §16: keep evaluating the live route while the user moves.
+                viewModel.onLocationUpdate(fix.latitude, fix.longitude)
             }
         }
+    }
+
+    private fun showBoundaryNotice() {
+        val notice = findViewById<TextView>(R.id.textBoundaryNotice) ?: return
+        notice.visibility = View.VISIBLE
+    }
+
+    private fun hideBoundaryNotice() {
+        val notice = findViewById<TextView>(R.id.textBoundaryNotice) ?: return
+        notice.visibility = View.GONE
     }
 
     private fun updateUserLocationMarker(lat: Double, lng: Double, accuracyMeters: Float, provider: String) {
@@ -726,8 +688,11 @@ class RouteActivity : AppCompatActivity() {
 
         noRouteText.visibility = View.GONE
         summaryText.visibility = View.VISIBLE
-        summaryText.text =
-            "Total distance: ${route.totalDistanceMeters} m · cost ${route.totalCostMeters}"
+        summaryText.text = buildString {
+            append("Distance: ${EtaEstimator.formatDistance(route.totalDistanceMeters)}")
+            append(" · ETA: ${EtaEstimator.format(route.estimatedDurationSeconds)}")
+            if (ui.isOffRoute) append(" · off route — recalculating")
+        }
 
         if (route.hazardWarnings.isEmpty()) {
             warningsText.visibility = View.GONE

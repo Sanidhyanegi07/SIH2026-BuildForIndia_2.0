@@ -98,6 +98,7 @@ object AStarPathfinder {
             totalDistanceMeters = totalDistance,
             totalCostMeters = totalCost,
             hazardWarnings = warnings.values.toList(),
+            estimatedDurationSeconds = EtaEstimator.estimateSeconds(totalDistance),
         )
     }
 

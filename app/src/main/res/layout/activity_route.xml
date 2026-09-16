@@ -60,7 +60,7 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
-<TextView
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="4dp"
@@ -68,6 +68,22 @@
             android:textColor="#1976D2"
             android:textSize="12sp"
             android:textStyle="bold" />
+
+        <!-- Spec §17: shown when the user is outside every downloaded region -->
+        <TextView
+            android:id="@+id/textBoundaryNotice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:background="@drawable/bg_badge_pill"
+            android:backgroundTint="@color/hazard_dim"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            android:text="Offline routing is unavailable outside your downloaded region."
+            android:textColor="@color/hazard_orange"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"

@@ -1,3 +1,51 @@
 <resources>
     <string name="app_name">GeoRescuX</string>
+
+    <!-- Primary bottom navigation (spec §9) -->
+    <string name="nav_home">Home</string>
+    <string name="nav_map">Map</string>
+    <string name="nav_alerts">Alerts</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Help Center (spec §31) -->
+    <string name="help_title">Help Center</string>
+    <string name="help_subtitle">How GeoRescuX works — offline first, emergency ready</string>
+    <string name="help_search_hint">Search questions…</string>
+
+    <!-- Connection states (spec §8) -->
+    <string name="connection_online">● ONLINE — cloud sync active</string>
+    <string name="connection_offline">● OFFLINE — local data, maps &amp; SOS active · sync pending</string>
+    <string name="connection_checking">● Checking connection…</string>
+
+    <!-- Map screen (spec §14) -->
+    <string name="map_title">Map</string>
+    <string name="map_open_safe_route">Open Safe Route</string>
+    <string name="map_my_location">My Location</string>
+    <string name="map_region_label">Region:</string>
+    <string name="map_offline_map_unavailable">Offline map data is not bundled for this region. Showing cached tiles when a connection is available; routing still works offline.</string>
+
+    <!-- Region selection (spec §6) -->
+    <string name="region_select_title">Select Your Region</string>
+    <string name="region_select_subtitle">Where are you currently located? Choose a regional offline package. Routing and maps work offline inside your region.</string>
+    <string name="region_status_installed">Installed · ready</string>
+    <string name="region_status_map_missing">Routing ready · offline map pending</string>
+    <string name="region_status_not_installed">Not downloaded</string>
+    <string name="region_india">Entire India</string>
+    <string name="region_india_subtitle">India-wide offline package</string>
+    <string name="region_india_unavailable">The India-wide package is larger than a single regional package and is delivered as a separate download.</string>
+    <string name="region_continue">Continue</string>
+
+    <!-- Safe Route Pro (spec §12, §18) -->
+    <string name="safe_route_pro_title">Safe Route Pro</string>
+    <string name="pro_emergency_active">● EMERGENCY ACTIVE</string>
+
+    <!-- Alerts (spec §20) -->
+    <string name="alerts_title">Alerts</string>
+    <string name="alerts_subtitle">Emergency information centre — SOS, BLE and official alerts</string>
+
+    <!-- Profile (spec §30) -->
+    <string name="profile_region">Region</string>
+    <string name="profile_change_region">Change region</string>
+    <string name="profile_emergency_contacts">Emergency Contacts</string>
+    <string name="profile_log_out">Log Out</string>
 </resources>

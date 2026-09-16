@@ -68,6 +68,10 @@ dependencies {
     implementation("com.google.android.gms:play-services-nearby:19.3.0")
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    // The on-disk SOS record uses org.json; the android.jar copy is stubbed
+    // on the JVM, so the real implementation is needed to unit-test the
+    // serializer that persists (and previously silently dropped) the note.
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
 }
