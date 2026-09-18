@@ -124,6 +124,8 @@ class GeoRescueBleAdvertiser(
     fun stopAdvertising() {
         val current = callback ?: return
         try {
+            // SecurityException from a revoked BLUETOOTH_ADMIN is caught below.
+            @android.annotation.SuppressLint("MissingPermission")
             advertiser?.stopAdvertising(current)
             GeoRescueBleDiagnostics.info(GeoRescueBleDiagnostics.ADVERTISING_STOPPED)
         } catch (e: Exception) {

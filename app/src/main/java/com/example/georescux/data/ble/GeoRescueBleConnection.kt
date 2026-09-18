@@ -339,6 +339,7 @@ class GeoRescueBleConnection(
             val writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             val initiated: Boolean =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    @android.annotation.SuppressLint("WrongConstant")
                     gattLocal.writeCharacteristic(rx, next, writeType) == BluetoothGatt.GATT_SUCCESS
                 } else {
                     @Suppress("DEPRECATION")

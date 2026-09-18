@@ -2,8 +2,7 @@ package com.example.georescux.data.maps.ingestion
 
 import java.io.File
 import java.io.FileInputStream
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
+import java.io.FileOutputStream
 import java.security.MessageDigest
 
 class RegionalMapIngestor(
@@ -131,8 +130,27 @@ class RegionalMapIngestor(
     private fun copyFileDeterministic(source: File, target: File) {
         val tempTarget = File(target.parentFile, "${target.name}.tmp")
         try {
-            Files.copy(source.toPath(), tempTarget.toPath(), StandardCopyOption.REPLACE_EXISTING)
-            Files.move(tempTarget.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            // Stream-based copy+rename works on all API levels (Files.copy needs 26+).
+            FileInputStream(source).use { input ->
+                FileOutputStream(tempTarget).use { output ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                    }
+                    output.flush()
+                    try { output.fd.sync() } catch (_: Exception) { }
+                }
+            }
+            // delete-then-rename is the reliable cross-platform atomic-ish
+            // replacement (File.renameTo cannot overwrite an existing file on
+            // Windows, and Files.move needs API 26+).
+            if (target.exists() && !target.delete()) {
+                throw IllegalStateException("cannot delete existing ${target.name}")
+            }
+            if (!tempTarget.renameTo(target)) {
+                throw IllegalStateException("renameTo failed for ${target.name}")
+            }
         } catch (e: Exception) {
             tempTarget.delete()
             throw IllegalStateException("Failed to copy source file ${source.name} safely", e)

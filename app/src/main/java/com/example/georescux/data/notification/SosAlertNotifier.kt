@@ -72,6 +72,18 @@ object SosAlertNotifier {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
 
+        // POST_NOTIFICATIONS is required on API 33+; the helper above already
+        // returns early when it is denied, but re-check inline so the guard is
+        // visible to lint and static analysis at the call site.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                appContext,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
         NotificationManagerCompat.from(appContext)
             .notify(notifIdCounter.getAndIncrement(), notification)
     }

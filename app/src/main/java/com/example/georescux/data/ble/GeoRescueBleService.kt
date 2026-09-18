@@ -140,6 +140,7 @@ class GeoRescueBleService(
         return try {
             val accepted: Boolean =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    @android.annotation.SuppressLint("WrongConstant")
                     server.notifyCharacteristicChanged(device, tx, false, bytes) ==
                         android.bluetooth.BluetoothGatt.GATT_SUCCESS
                 } else {
