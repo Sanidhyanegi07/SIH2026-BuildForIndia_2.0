@@ -459,6 +459,534 @@
                     android:textSize="12sp"
                     app:backgroundTint="@null" />
 
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+<Button
+                    android:id="@+id/buttonTabIncidents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📋 Incidents"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+                <Button
+                    android:id="@+id/buttonTabEvents"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="📅 Events"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
                 <Button
                     android:id="@+id/buttonTabResources"
                     android:layout_width="wrap_content"
@@ -477,6 +1005,17 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_button_secondary"
                     android:text="🛡️ Verification Queue"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    app:backgroundTint="@null" />
+
+                <Button
+                    android:id="@+id/buttonTabSettings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_button_secondary"
+                    android:text="⚙️ Settings"
                     android:textAllCaps="false"
                     android:textColor="@color/text_primary"
                     android:textSize="12sp"
@@ -524,6 +1063,19 @@
                 android:layout_marginStart="6dp"
                 android:background="@drawable/bg_button_secondary"
                 android:text="🗺️ Geographic Map"
+                android:textAllCaps="false"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp"
+                app:backgroundTint="@null" />
+
+            <Button
+                android:id="@+id/buttonAdminUsers"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:text="👥 User Directory"
                 android:textAllCaps="false"
                 android:textColor="@color/text_primary"
                 android:textSize="12sp"

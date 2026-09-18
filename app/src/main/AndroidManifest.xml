@@ -59,6 +59,7 @@ xmlns:tools="http://schemas.android.com/tools">
     <activity android:name=".ui.profile.ProfileActivity" android:exported="false" />
     <activity android:name=".ui.admin.AdminDashboardActivity" android:exported="false" />
         <activity android:name=".ui.admin.AdminMapActivity" android:exported="false" />
+        <activity android:name=".ui.admin.AdminUsersActivity" android:exported="false" />
     <activity
         android:name=".ui.sos.SosActivity"
         android:exported="false"

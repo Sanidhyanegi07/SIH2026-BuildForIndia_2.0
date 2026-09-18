@@ -14,6 +14,7 @@ import com.example.georescux.R
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.example.georescux.domain.admin.DistrictCatalog
 import com.example.georescux.domain.admin.EmergencyPriorityCalculator
+import com.example.georescux.domain.admin.EmergencyVerifiable
 import com.example.georescux.ui.common.OfflineMapSetup
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -49,7 +50,7 @@ class AdminMapActivity : AppCompatActivity() {
         val latitude: Double,
         val longitude: Double,
         val isActive: Boolean,
-        val isVerified: Boolean,
+        override val isVerified: Boolean,
     ) : EmergencyVerifiable
 
     private var listener: ValueEventListener? = null
@@ -220,12 +221,12 @@ class AdminMapActivity : AppCompatActivity() {
             setTextColor(ContextCompat.getColor(this@AdminMapActivity, R.color.text_secondary))
             textSize = 12f
         })
-        row.addView(TextView(this).apply {
-            text = value
-            setTextColor(ContextCompat.getColor(this@AdminMapActivity, R.color.text_primary))
-            textSize = 13f
-            textStyle = android.graphics.Typeface.BOLD
-        })
+row.addView(TextView(this).apply {
+                text = value
+                setTextColor(ContextCompat.getColor(this@AdminMapActivity, R.color.text_primary))
+                textSize = 13f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            })
         return row
     }
 
