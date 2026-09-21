@@ -290,9 +290,11 @@ This validates a realistic disaster scenario: offline relay + later cloud ingest
 Built for Smart India Hackathon 2026 — Problem Statement SIH26206 (Disaster Management, Software Track) by:
 
 - Sanidhya
-- Karan
+- Tushar 
 - Rudraksh
-- Shobhit
+- Nehal
+- Dheeraj
+- Nirmay
 
 ## License
 
