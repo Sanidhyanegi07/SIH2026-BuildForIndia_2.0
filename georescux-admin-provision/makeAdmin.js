@@ -2,21 +2,24 @@ const { initializeApp, cert } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 
 const serviceAccount = require('./serviceAccountKey.json');
+initializeApp({ credential: cert(serviceAccount) });
 
-initializeApp({
-  credential: cert(serviceAccount)
-});
+const targetUid = process.argv[2];
+if (!targetUid) {
+  console.error('Usage: node makeAdmin.js <firebase-user-uid>');
+  process.exit(2);
+}
 
-const targetUid = "bKkjL4ObTDVfh8P9BZWq7nzgjdf2";
-
-getAuth()
-  .setCustomUserClaims(targetUid, { admin: true })
+getAuth().getUser(targetUid)
+  .then((user) => getAuth().setCustomUserClaims(targetUid, {
+    ...(user.customClaims || {}),
+    admin: true
+  }))
   .then(() => {
-    console.log(`Success! Admin claim successfully added to UID: ${targetUid}`);
-    console.log("The user must log out and log back in on their Android device for the new claims to take effect.");
-    process.exit(0);
+    console.log(`Admin claim granted to UID: ${targetUid}`);
+    console.log('The user must refresh their ID token or sign in again.');
   })
   .catch((error) => {
-    console.error("Error setting custom claims:", error);
-    process.exit(1);
+    console.error('Error setting custom claims:', error.message);
+    process.exitCode = 1;
   });
