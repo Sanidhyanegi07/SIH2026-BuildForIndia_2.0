@@ -1,19 +1,13 @@
 package com.example.georescux.ui.home
 
-import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
-import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
@@ -29,6 +23,7 @@ import com.example.georescux.domain.sos.SosStateMachine
 import com.example.georescux.domain.sos.SosState
 import com.example.georescux.ui.alerts.AlertsActivity
 import com.example.georescux.ui.auth.LoginActivity
+import com.example.georescux.ui.common.ActiveSosBanner
 import com.example.georescux.ui.contacts.ContactsActivity
 import com.example.georescux.ui.routing.RouteActivity
 import com.example.georescux.ui.sos.SosActivity
@@ -83,11 +78,6 @@ class HomeActivity : AppCompatActivity() {
     private val enableBluetoothLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { _ -> }
-
-    private val holdHandler = Handler(Looper.getMainLooper())
-    private var holdProgressAnimator: ObjectAnimator? = null
-    private var holdCompleteRunnable: Runnable? = null
-    private var isHolding = false
 
     // The dashboard's own view of the SOS state machine (arming only).
     // The countdown and emergency states live in SosActivity/SosViewModel.
@@ -178,61 +168,20 @@ class HomeActivity : AppCompatActivity() {
 
     private fun setupSosButton() {
         val sosButton = findViewById<Button>(R.id.buttonSos)
-        val holdProgress = findViewById<ProgressBar>(R.id.progressBarSosHold)
-        val sosHint = findViewById<TextView>(R.id.textViewSosHint)
 
-        sosButton.setOnTouchListener { _, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> startHold(sosButton, holdProgress, sosHint)
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
-                    cancelHold(sosButton, holdProgress, sosHint)
+        // §3: a single tap starts the 2-second countdown. The old
+        // press-and-hold arming stage is removed so the total time from
+        // tap to ACTIVE is exactly the countdown.
+        sosButton.setOnClickListener {
+            // §24: if an emergency is already active, don't create a second
+            // one — open the live emergency panel (which is non-trapping).
+            if ((application as GeoRescuXApplication).appContainer.sosRepository.getActiveEmergency() != null) {
+                openSosScreen()
+                return@setOnClickListener
             }
-            true // consume the events so the held button never fires a plain click
-        }
-    }
-
-    private fun startHold(button: Button, progress: ProgressBar, hint: TextView) {
-        // If an emergency is already active (e.g. restored after a restart),
-        // show it instead of arming a second one.
-        if ((application as GeoRescuXApplication).appContainer.sosRepository.getActiveEmergency() != null) {
+            sosMachineState = SosStateMachine.onEvent(sosMachineState, SosEvent.HOLD_STARTED)
             openSosScreen()
-            return
         }
-
-        isHolding = true
-        sosMachineState = SosStateMachine.onEvent(sosMachineState, SosEvent.HOLD_STARTED) // IDLE -> ARMING
-        hint.text = "Keep holding..."
-        progress.visibility = View.VISIBLE
-
-        holdProgressAnimator = ObjectAnimator.ofInt(progress, "progress", 0, 100).apply {
-            duration = HOLD_DURATION_MS
-            start()
-        }
-        holdCompleteRunnable = Runnable {
-            isHolding = false
-            sosMachineState = SosStateMachine.onEvent(sosMachineState, SosEvent.HOLD_COMPLETED) // ARMING -> COUNTDOWN
-            openSosScreen()
-            resetHoldUi(button, progress, hint)
-        }.also { holdHandler.postDelayed(it, HOLD_DURATION_MS) }
-    }
-
-    private fun cancelHold(button: Button, progress: ProgressBar, hint: TextView) {
-        if (!isHolding) return // the hold already completed; nothing to cancel
-        isHolding = false
-        holdCompleteRunnable?.let { holdHandler.removeCallbacks(it) }
-        holdProgressAnimator?.cancel()
-
-        // Released early: silent cancel — no SOS record is created.
-        sosMachineState = SosStateMachine.onEvent(sosMachineState, SosEvent.HOLD_RELEASED) // ARMING -> IDLE
-        resetHoldUi(button, progress, hint)
-    }
-
-    private fun resetHoldUi(button: Button, progress: ProgressBar, hint: TextView) {
-        holdCompleteRunnable = null
-        holdProgressAnimator = null
-        progress.progress = 0
-        progress.visibility = View.GONE
-        hint.text = "Hold 2 seconds to send"
     }
 
     private fun openSosScreen() {
@@ -248,11 +197,10 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         checkBlePermissionsAndState()
 
-        // If an emergency is active (e.g. the app restarted while SOS ran),
-        // show the live emergency screen right away.
-        if ((application as GeoRescuXApplication).appContainer.sosRepository.getActiveEmergency() != null) {
-            openSosScreen()
-        }
+        // §4/§21: an active SOS is a GLOBAL state, not a screen lock. Never
+        // re-launch SosActivity here — the persistent banner on this screen
+        // is the user's way back, and they are free to use the rest of the app.
+        ActiveSosBanner.refresh(this)
 
         // Refresh the latest-alert summary so a newly completed SOS
         // appears here without any unrelated changes.
@@ -405,7 +353,5 @@ class HomeActivity : AppCompatActivity() {
         return if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
     }
 
-    private companion object {
-        const val HOLD_DURATION_MS = 2000L
-    }
+    private companion object
 }

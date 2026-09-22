@@ -32,7 +32,10 @@ import java.util.Locale
  * Full-screen SOS flow: countdown first, then the live emergency screen.
  * The flow works offline, and location is best-effort: a missing
  * permission or a missing GPS fix never stops or cancels an emergency.
- * Back is disabled on purpose — only "Stop Emergency" ends an emergency.
+ *
+ * §4/§21: the user is NOT trapped here. Once ACTIVE, Back returns to the
+ * app and the persistent global SOS banner is the way back in; the
+ * emergency keeps running. Back during the countdown cancels it.
  */
 class SosActivity : AppCompatActivity() {
 
@@ -90,10 +93,16 @@ class SosActivity : AppCompatActivity() {
             )
         ).get(SosViewModel::class.java)
 
-        // Back is intentionally ignored: an emergency is never abandoned with Back.
+        // §4: never trap the user. Back during the countdown cancels it;
+        // Back while ACTIVE returns to the app — the SOS keeps running and
+        // the global banner (present on every user screen) is the way back.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                // No action — use "Stop Emergency" to end the SOS flow.
+                if (viewModel.uiState.value.state == SosState.COUNTDOWN) {
+                    viewModel.cancelCountdown()
+                } else {
+                    finish()
+                }
             }
         })
 

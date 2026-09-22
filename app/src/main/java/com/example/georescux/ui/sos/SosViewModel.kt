@@ -72,7 +72,7 @@ class SosViewModel(
         }
     }
 
-    /** Starts the 5-second countdown. Only valid from the COUNTDOWN state. */
+    /** Starts the activation countdown. Only valid from the COUNTDOWN state. */
     fun beginCountdown() {
         if (_uiState.value.state != SosState.COUNTDOWN) return
         countdownJob?.cancel()
@@ -213,6 +213,7 @@ class SosViewModel(
     }
 
     companion object {
-        const val COUNTDOWN_SECONDS = 5
+        // §3/§20: the spec's single activation countdown — tap, then 2..1..0, then ACTIVE.
+        const val COUNTDOWN_SECONDS = 2
     }
 }
