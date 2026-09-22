@@ -2,21 +2,24 @@ const { initializeApp, cert } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 
 const serviceAccount = require('./serviceAccountKey.json');
+initializeApp({ credential: cert(serviceAccount) });
 
-initializeApp({
-  credential: cert(serviceAccount)
-});
+const targetUid = process.argv[2];
+if (!targetUid) {
+  console.error('Usage: node removeAdmin.js <firebase-user-uid>');
+  process.exit(2);
+}
 
-const targetUid = process.argv[2] || "oJDDWyVlmNPMyfNSFQqptcActiF2";
-
-getAuth()
-  .setCustomUserClaims(targetUid, { admin: false })
+getAuth().getUser(targetUid)
+  .then((user) => getAuth().setCustomUserClaims(targetUid, {
+    ...(user.customClaims || {}),
+    admin: false
+  }))
   .then(() => {
-    console.log(`Success! Admin claim successfully removed from UID: ${targetUid}`);
-    console.log("The user must refresh their token or log out and log back in for changes to take effect.");
-    process.exit(0);
+    console.log(`Admin claim revoked for UID: ${targetUid}`);
+    console.log('The user must refresh their ID token or sign in again.');
   })
   .catch((error) => {
-    console.error("Error removing custom claims:", error);
-    process.exit(1);
+    console.error('Error removing custom claims:', error.message);
+    process.exitCode = 1;
   });
